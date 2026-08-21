@@ -361,6 +361,26 @@ export default function PharmacyProfilePage({ onNavigate, params }: PharmacyProf
               )}
             </div>
 
+            {/* ✅ قسم الرسائل الواردة - تمت الإضافة */}
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+              <h2 className="font-bold text-slate-800 mb-4">📩 الرسائل الواردة</h2>
+              {pharmacy.messages.length === 0 ? (
+                <p className="text-sm text-slate-400 text-center py-4">لا توجد رسائل</p>
+              ) : (
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {pharmacy.messages.map((msg) => (
+                    <div key={msg.id} className="bg-slate-50 rounded-xl p-3 border border-slate-200">
+                      <div className="flex items-center justify-between">
+                        <span className="font-semibold text-slate-800 text-sm">{msg.senderName}</span>
+                        <span className="text-xs text-slate-400">{formatDate(msg.timestamp)}</span>
+                      </div>
+                      <p className="text-sm text-slate-600 mt-1">{msg.text}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {!isAdmin && (
               <div className="bg-white rounded-2xl border border-blue-200 shadow-sm">
                 <div className="px-5 py-4 border-b border-slate-100">
