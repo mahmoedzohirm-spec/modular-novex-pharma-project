@@ -568,7 +568,7 @@ export function sendBrowserNotification(title: string, body: string, icon?: stri
     try {
       const notification = new Notification(title, {
         body: body,
-        icon: icon || '/vite.svg',
+        icon: icon || '/logo.png',
         silent: false,
       });
       setTimeout(() => notification.close(), 5000);
