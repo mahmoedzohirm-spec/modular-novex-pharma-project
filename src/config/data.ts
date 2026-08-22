@@ -1,7 +1,9 @@
 // ============================================================
-// config/data.ts — Initial Data State & localStorage helpers
+// config/data.ts — Data Layer (Neon Database + localStorage)
 // Novex Pharma — مستودع الأدوية والتوزيع
 // ============================================================
+import { sql } from './db';
+import bcrypt from 'bcryptjs';
 
 export interface Medicine {
   id: string;
@@ -97,8 +99,13 @@ export interface Notification {
   type: "info" | "success" | "warning";
 }
 
-// ─── Default seed data ───────────────────────────────────────
+// ─── localStorage Keys (للسلة والمستخدم الحالي فقط) ───
+export const STORAGE_KEYS = {
+  CART: "novex_cart",
+  CURRENT_USER: "novex_current_user",
+} as const;
 
+// ─── Default seed data ───────────────────────────────────────
 const DEFAULT_MEDICINES: Medicine[] = [
   {
     id: "med-001",
@@ -282,7 +289,7 @@ const DEFAULT_MEDICINES: Medicine[] = [
   },
 ];
 
-const DEFAULT_PHARMACIES: Pharmacy[] = [
+const DEFAULT_PHARMACIES: Omit<Pharmacy, 'messages' | 'lastPaymentReminder'>[] = [
   {
     id: "pharm-001",
     pharmacyName: "صيدلية النور",
@@ -293,8 +300,6 @@ const DEFAULT_PHARMACIES: Pharmacy[] = [
     totalDebt: 2850.0,
     totalPaid: 1200.0,
     registeredAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-    messages: [],
-    lastPaymentReminder: undefined,
   },
   {
     id: "pharm-002",
@@ -306,8 +311,6 @@ const DEFAULT_PHARMACIES: Pharmacy[] = [
     totalDebt: 5400.0,
     totalPaid: 3100.0,
     registeredAt: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(),
-    messages: [],
-    lastPaymentReminder: undefined,
   },
   {
     id: "pharm-003",
@@ -319,8 +322,6 @@ const DEFAULT_PHARMACIES: Pharmacy[] = [
     totalDebt: 1750.0,
     totalPaid: 800.0,
     registeredAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
-    messages: [],
-    lastPaymentReminder: undefined,
   },
 ];
 
@@ -416,108 +417,477 @@ const DEFAULT_NOTIFICATIONS: Notification[] = [
   },
 ];
 
-// ─── localStorage Keys ────────────────────────────────────────
-export const STORAGE_KEYS = {
-  MEDICINES: "novex_medicines",
-  PHARMACIES: "novex_pharmacies",
-  RECEIPTS: "novex_receipts",
-  ORDERS: "novex_orders",
-  NOTIFICATIONS: "novex_notifications",
-  CURRENT_USER: "novex_current_user",
-  CART: "novex_cart",
-} as const;
+// ─── دوال التهيئة ──────────────────────────────────────────────
+export async function initializeStorage(): Promise<void> {
+  // التحقق من وجود أدوية
+  const medicines = await getMedicines();
+  if (medicines.length === 0) {
+    for (const med of DEFAULT_MEDICINES) {
+      await sql`
+        INSERT INTO medicines (
+          id, name, genericname, price, bonus, imageurl,
+          categories, stock, description, barcode, ratings, stockmovements, viewcount
+        ) VALUES (
+          ${med.id}, ${med.name}, ${med.genericName}, ${med.price}, ${med.bonus},
+          ${med.imageUrl}, ${med.categories}, ${med.stock}, ${med.description},
+          ${med.barcode}, ${med.ratings}, ${med.stockMovements}, ${med.viewCount}
+        );
+      `;
+    }
+  }
 
-// ─── Storage helpers ──────────────────────────────────────────
-export function initializeStorage(): void {
-  const existing = localStorage.getItem(STORAGE_KEYS.MEDICINES);
+  // التحقق من وجود صيدليات
+  const pharmacies = await getPharmacies();
+  if (pharmacies.length === 0) {
+    for (const p of DEFAULT_PHARMACIES) {
+      await sql`
+        INSERT INTO pharmacies (
+          id, pharmacyname, username, password, phone, accounttype,
+          totaldebt, totalpaid, registeredat, messages, lastpaymentreminder
+        ) VALUES (
+          ${p.id}, ${p.pharmacyName}, ${p.username}, ${p.password}, ${p.phone},
+          ${p.accountType}, ${p.totalDebt}, ${p.totalPaid}, ${p.registeredAt},
+          '[]', NULL
+        );
+      `;
+    }
+  }
+
+  // التحقق من وجود إيصالات
+  const receipts = await getReceipts();
+  if (receipts.length === 0) {
+    for (const r of DEFAULT_RECEIPTS) {
+      await sql`
+        INSERT INTO receipts (
+          id, pharmacyid, pharmacyname, amount, imageurl,
+          timestamp, status, notes
+        ) VALUES (
+          ${r.id}, ${r.pharmacyId}, ${r.pharmacyName}, ${r.amount},
+          ${r.imageUrl}, ${r.timestamp}, ${r.status}, ${r.notes}
+        );
+      `;
+    }
+  }
+
+  // التحقق من وجود طلبات
+  const orders = await getOrders();
+  if (orders.length === 0) {
+    for (const o of DEFAULT_ORDERS) {
+      await sql`
+        INSERT INTO orders (
+          id, pharmacyid, pharmacyname, items, total,
+          timestamp, status
+        ) VALUES (
+          ${o.id}, ${o.pharmacyId}, ${o.pharmacyName}, ${o.items},
+          ${o.total}, ${o.timestamp}, ${o.status}
+        );
+      `;
+    }
+  }
+
+  // التحقق من وجود إشعارات
+  const notifications = await getNotifications();
+  if (notifications.length === 0) {
+    for (const n of DEFAULT_NOTIFICATIONS) {
+      await sql`
+        INSERT INTO notifications (id, message, timestamp, read, type)
+        VALUES (${n.id}, ${n.message}, ${n.timestamp}, ${n.read}, ${n.type});
+      `;
+    }
+  }
+}
+
+// ─── دوال الأدوية ──────────────────────────────────────────────
+export async function getMedicines(): Promise<Medicine[]> {
+  const result = await sql`SELECT * FROM medicines ORDER BY name;`;
+  return result.map((r: any) => ({
+    id: r.id,
+    name: r.name,
+    genericName: r.genericname,
+    price: r.price,
+    bonus: r.bonus,
+    imageUrl: r.imageurl,
+    categories: r.categories || [],
+    stock: r.stock,
+    description: r.description,
+    barcode: r.barcode,
+    ratings: r.ratings || [],
+    stockMovements: r.stockmovements || [],
+    viewCount: r.viewcount || 0,
+  }));
+}
+
+export async function setMedicines(medicines: Medicine[]): Promise<void> {
+  await sql`DELETE FROM medicines;`;
+  for (const med of medicines) {
+    await sql`
+      INSERT INTO medicines (
+        id, name, genericname, price, bonus, imageurl, 
+        categories, stock, description, barcode, ratings, stockmovements, viewcount
+      ) VALUES (
+        ${med.id}, ${med.name}, ${med.genericName}, ${med.price}, ${med.bonus},
+        ${med.imageUrl}, ${med.categories}, ${med.stock}, ${med.description},
+        ${med.barcode}, ${med.ratings}, ${med.stockMovements}, ${med.viewCount || 0}
+      );
+    `;
+  }
+}
+
+export async function getMedicineById(id: string): Promise<Medicine | null> {
+  const result = await sql`SELECT * FROM medicines WHERE id = ${id};`;
+  if (result.length === 0) return null;
+  const r = result[0];
+  return {
+    id: r.id,
+    name: r.name,
+    genericName: r.genericname,
+    price: r.price,
+    bonus: r.bonus,
+    imageUrl: r.imageurl,
+    categories: r.categories || [],
+    stock: r.stock,
+    description: r.description,
+    barcode: r.barcode,
+    ratings: r.ratings || [],
+    stockMovements: r.stockmovements || [],
+    viewCount: r.viewcount || 0,
+  };
+}
+
+export async function getLowStockMedicines(threshold: number = 50): Promise<Medicine[]> {
+  const medicines = await getMedicines();
+  return medicines.filter(m => m.stock < threshold);
+}
+
+export async function addStockMovement(
+  medicineId: string,
+  type: 'in' | 'out',
+  quantity: number,
+  note: string = ''
+): Promise<void> {
+  const medicines = await getMedicines();
+  const med = medicines.find(m => m.id === medicineId);
+  if (!med) return;
+  
+  const movement: StockMovement = {
+    id: generateId('mov'),
+    type,
+    quantity,
+    note,
+    timestamp: new Date().toISOString(),
+  };
+  
+  med.stockMovements.push(movement);
+  med.stock += type === 'in' ? quantity : -quantity;
+  if (med.stock < 0) med.stock = 0;
+  await setMedicines(medicines);
+}
+
+export async function updateStockAfterOrder(order: Order): Promise<void> {
+  const medicines = await getMedicines();
+  order.items.forEach(item => {
+    const med = medicines.find(m => m.id === item.medicineId);
+    if (med) {
+      med.stock -= item.quantity;
+      if (med.stock < 0) med.stock = 0;
+    }
+  });
+  await setMedicines(medicines);
+}
+
+// ─── دوال الصيدليات ────────────────────────────────────────────
+export async function getPharmacies(): Promise<Pharmacy[]> {
+  const result = await sql`SELECT * FROM pharmacies ORDER BY pharmacyname;`;
+  return result.map((r: any) => ({
+    id: r.id,
+    pharmacyName: r.pharmacyname,
+    username: r.username,
+    password: r.password,
+    phone: r.phone,
+    accountType: r.accounttype,
+    totalDebt: r.totaldebt || 0,
+    totalPaid: r.totalpaid || 0,
+    registeredAt: r.registeredat,
+    messages: r.messages || [],
+    lastPaymentReminder: r.lastpaymentreminder,
+  }));
+}
+
+export async function setPharmacies(pharmacies: Pharmacy[]): Promise<void> {
+  await sql`DELETE FROM pharmacies;`;
+  for (const p of pharmacies) {
+    await sql`
+      INSERT INTO pharmacies (
+        id, pharmacyname, username, password, phone, accounttype,
+        totaldebt, totalpaid, registeredat, messages, lastpaymentreminder
+      ) VALUES (
+        ${p.id}, ${p.pharmacyName}, ${p.username}, ${p.password}, ${p.phone},
+        ${p.accountType}, ${p.totalDebt}, ${p.totalPaid}, ${p.registeredAt},
+        ${p.messages}, ${p.lastPaymentReminder}
+      );
+    `;
+  }
+}
+
+export async function getPharmacyByUsername(username: string): Promise<Pharmacy | null> {
+  const result = await sql`SELECT * FROM pharmacies WHERE username = ${username};`;
+  if (result.length === 0) return null;
+  const r = result[0];
+  return {
+    id: r.id,
+    pharmacyName: r.pharmacyname,
+    username: r.username,
+    password: r.password,
+    phone: r.phone,
+    accountType: r.accounttype,
+    totalDebt: r.totaldebt || 0,
+    totalPaid: r.totalpaid || 0,
+    registeredAt: r.registeredat,
+    messages: r.messages || [],
+    lastPaymentReminder: r.lastpaymentreminder,
+  };
+}
+
+export async function updatePharmacy(pharmacyId: string, updates: Partial<Pharmacy>): Promise<boolean> {
+  const pharmacies = await getPharmacies();
+  const index = pharmacies.findIndex(p => p.id === pharmacyId);
+  if (index === -1) return false;
+  
+  const updated = { ...pharmacies[index], ...updates };
+  pharmacies[index] = updated;
+  await setPharmacies(pharmacies);
+  
+  const currentUser = getCurrentUser();
+  if (currentUser && currentUser.id === pharmacyId) {
+    setCurrentUser(updated);
+  }
+  return true;
+}
+
+export async function resetPharmacyPassword(pharmacyId: string, newPassword: string): Promise<boolean> {
+  if (newPassword.length < 6) return false;
+  const hashed = await hashPassword(newPassword);
+  return updatePharmacy(pharmacyId, { password: hashed });
+}
+
+export async function sendMessage(pharmacyId: string, senderId: string, senderName: string, text: string): Promise<void> {
+  const pharmacies = await getPharmacies();
+  const index = pharmacies.findIndex(p => p.id === pharmacyId);
+  if (index === -1) return;
+  
+  const newMessage: Message = {
+    id: generateId('msg'),
+    senderId,
+    senderName,
+    text,
+    timestamp: new Date().toISOString(),
+    read: false,
+  };
+  
+  pharmacies[index].messages.push(newMessage);
+  await setPharmacies(pharmacies);
+}
+
+export async function getMessages(pharmacyId: string): Promise<Message[]> {
+  const pharmacies = await getPharmacies();
+  const pharm = pharmacies.find(p => p.id === pharmacyId);
+  return pharm?.messages || [];
+}
+
+// ─── دوال الإيصالات ────────────────────────────────────────────
+export async function getReceipts(): Promise<Receipt[]> {
+  const result = await sql`SELECT * FROM receipts ORDER BY timestamp DESC;`;
+  return result.map((r: any) => ({
+    id: r.id,
+    pharmacyId: r.pharmacyid,
+    pharmacyName: r.pharmacyname,
+    amount: r.amount,
+    imageUrl: r.imageurl,
+    timestamp: r.timestamp,
+    status: r.status,
+    notes: r.notes,
+  }));
+}
+
+export async function setReceipts(receipts: Receipt[]): Promise<void> {
+  await sql`DELETE FROM receipts;`;
+  for (const r of receipts) {
+    await sql`
+      INSERT INTO receipts (
+        id, pharmacyid, pharmacyname, amount, imageurl,
+        timestamp, status, notes
+      ) VALUES (
+        ${r.id}, ${r.pharmacyId}, ${r.pharmacyName}, ${r.amount},
+        ${r.imageUrl}, ${r.timestamp}, ${r.status}, ${r.notes}
+      );
+    `;
+  }
+}
+
+export async function addReceipt(receipt: Receipt): Promise<void> {
+  await sql`
+    INSERT INTO receipts (
+      id, pharmacyid, pharmacyname, amount, imageurl,
+      timestamp, status, notes
+    ) VALUES (
+      ${receipt.id}, ${receipt.pharmacyId}, ${receipt.pharmacyName},
+      ${receipt.amount}, ${receipt.imageUrl}, ${receipt.timestamp},
+      ${receipt.status}, ${receipt.notes}
+    );
+  `;
+}
+
+export async function updateReceiptStatus(receiptId: string, status: 'approved' | 'rejected'): Promise<void> {
+  await sql`UPDATE receipts SET status = ${status} WHERE id = ${receiptId};`;
+}
+
+// ─── دوال الطلبات ──────────────────────────────────────────────
+export async function getOrders(): Promise<Order[]> {
+  const result = await sql`SELECT * FROM orders ORDER BY timestamp DESC;`;
+  return result.map((r: any) => ({
+    id: r.id,
+    pharmacyId: r.pharmacyid,
+    pharmacyName: r.pharmacyname,
+    items: r.items || [],
+    total: r.total,
+    timestamp: r.timestamp,
+    status: r.status,
+  }));
+}
+
+export async function setOrders(orders: Order[]): Promise<void> {
+  await sql`DELETE FROM orders;`;
+  for (const o of orders) {
+    await sql`
+      INSERT INTO orders (
+        id, pharmacyid, pharmacyname, items, total,
+        timestamp, status
+      ) VALUES (
+        ${o.id}, ${o.pharmacyId}, ${o.pharmacyName}, ${o.items},
+        ${o.total}, ${o.timestamp}, ${o.status}
+      );
+    `;
+  }
+}
+
+export async function addOrder(order: Order): Promise<void> {
+  await sql`
+    INSERT INTO orders (
+      id, pharmacyid, pharmacyname, items, total,
+      timestamp, status
+    ) VALUES (
+      ${order.id}, ${order.pharmacyId}, ${order.pharmacyName},
+      ${order.items}, ${order.total}, ${order.timestamp}, ${order.status}
+    );
+  `;
+}
+
+// ─── دوال الإشعارات ────────────────────────────────────────────
+export async function getNotifications(): Promise<Notification[]> {
+  const result = await sql`SELECT * FROM notifications ORDER BY timestamp DESC;`;
+  return result.map((r: any) => ({
+    id: r.id,
+    message: r.message,
+    timestamp: r.timestamp,
+    read: r.read || false,
+    type: r.type || 'info',
+  }));
+}
+
+export async function setNotifications(notifications: Notification[]): Promise<void> {
+  await sql`DELETE FROM notifications;`;
+  for (const n of notifications) {
+    await sql`
+      INSERT INTO notifications (id, message, timestamp, read, type)
+      VALUES (${n.id}, ${n.message}, ${n.timestamp}, ${n.read}, ${n.type});
+    `;
+  }
+}
+
+export async function addNotification(message: string, type: "info" | "success" | "warning" = "info"): Promise<void> {
+  const id = generateId("notif");
+  await sql`
+    INSERT INTO notifications (id, message, timestamp, read, type)
+    VALUES (${id}, ${message}, NOW(), false, ${type});
+  `;
+}
+
+// ─── دوال المصادقة ────────────────────────────────────────────
+export async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, 10);
+}
+
+export async function verifyPassword(plainPassword: string, hashedPassword: string): Promise<boolean> {
+  return bcrypt.compare(plainPassword, hashedPassword);
+}
+
+export async function login(username: string, password: string): Promise<{ success: boolean; message: string; isAdmin: boolean; user?: Pharmacy }> {
+  const user = await getPharmacyByUsername(username);
+  if (!user) {
+    return { success: false, message: 'اسم المستخدم غير موجود', isAdmin: false };
+  }
+  
+  const isValid = await verifyPassword(password, user.password);
+  if (!isValid) {
+    return { success: false, message: 'كلمة المرور غير صحيحة', isAdmin: false };
+  }
+  
+  setCurrentUser(user);
+  
+  return {
+    success: true,
+    message: `مرحباً بك، ${user.pharmacyName}`,
+    isAdmin: user.accountType === 'admin',
+    user,
+  };
+}
+
+export async function register(data: {
+  pharmacyName: string;
+  username: string;
+  password: string;
+  phone: string;
+  accountType: "pharmacy";
+}): Promise<{ success: boolean; message: string }> {
+  // التحقق من وجود اسم المستخدم
+  const existing = await getPharmacyByUsername(data.username);
   if (existing) {
-    try {
-      const parsed = JSON.parse(existing);
-      const upgraded = parsed.map((m: any) => ({
-        ...m,
-        ratings: m.ratings || [],
-        stockMovements: m.stockMovements || [],
-        barcode: m.barcode || '',
-        categories: m.categories || (m.category ? [m.category] : []),
-        viewCount: m.viewCount !== undefined ? m.viewCount : 0,
-        category: undefined,
-      }));
-      localStorage.setItem(STORAGE_KEYS.MEDICINES, JSON.stringify(upgraded));
-    } catch (e) {
-      localStorage.setItem(STORAGE_KEYS.MEDICINES, JSON.stringify(DEFAULT_MEDICINES));
-    }
-  } else {
-    localStorage.setItem(STORAGE_KEYS.MEDICINES, JSON.stringify(DEFAULT_MEDICINES));
+    return { success: false, message: 'اسم المستخدم مستخدم بالفعل' };
   }
-
-  const pharmExisting = localStorage.getItem(STORAGE_KEYS.PHARMACIES);
-  if (pharmExisting) {
-    try {
-      const parsed = JSON.parse(pharmExisting);
-      const upgraded = parsed.map((p: any) => ({
-        ...p,
-        messages: p.messages || [],
-        lastPaymentReminder: p.lastPaymentReminder || undefined,
-      }));
-      localStorage.setItem(STORAGE_KEYS.PHARMACIES, JSON.stringify(upgraded));
-    } catch (e) {
-      localStorage.setItem(STORAGE_KEYS.PHARMACIES, JSON.stringify(DEFAULT_PHARMACIES));
-    }
-  } else {
-    localStorage.setItem(STORAGE_KEYS.PHARMACIES, JSON.stringify(DEFAULT_PHARMACIES));
-  }
-
-  if (!localStorage.getItem(STORAGE_KEYS.RECEIPTS)) {
-    localStorage.setItem(STORAGE_KEYS.RECEIPTS, JSON.stringify(DEFAULT_RECEIPTS));
-  }
-  if (!localStorage.getItem(STORAGE_KEYS.ORDERS)) {
-    localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(DEFAULT_ORDERS));
-  }
-  if (!localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS)) {
-    localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(DEFAULT_NOTIFICATIONS));
-  }
+  
+  // تشفير كلمة المرور
+  const hashedPassword = await hashPassword(data.password);
+  
+  const newPharmacy: Pharmacy = {
+    id: generateId('pharm'),
+    pharmacyName: data.pharmacyName,
+    username: data.username,
+    password: hashedPassword,
+    phone: data.phone,
+    accountType: data.accountType,
+    totalDebt: 0,
+    totalPaid: 0,
+    registeredAt: new Date().toISOString(),
+    messages: [],
+  };
+  
+  const pharmacies = await getPharmacies();
+  pharmacies.push(newPharmacy);
+  await setPharmacies(pharmacies);
+  
+  setCurrentUser(newPharmacy);
+  
+  return {
+    success: true,
+    message: `تم إنشاء الحساب بنجاح! مرحباً بك، ${newPharmacy.pharmacyName}`,
+  };
 }
 
-export function getMedicines(): Medicine[] {
-  return JSON.parse(localStorage.getItem(STORAGE_KEYS.MEDICINES) || "[]");
+export function logout(): void {
+  localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
 }
 
-export function setMedicines(medicines: Medicine[]): void {
-  localStorage.setItem(STORAGE_KEYS.MEDICINES, JSON.stringify(medicines));
-}
-
-export function getPharmacies(): Pharmacy[] {
-  return JSON.parse(localStorage.getItem(STORAGE_KEYS.PHARMACIES) || "[]");
-}
-
-export function setPharmacies(pharmacies: Pharmacy[]): void {
-  localStorage.setItem(STORAGE_KEYS.PHARMACIES, JSON.stringify(pharmacies));
-}
-
-export function getReceipts(): Receipt[] {
-  return JSON.parse(localStorage.getItem(STORAGE_KEYS.RECEIPTS) || "[]");
-}
-
-export function setReceipts(receipts: Receipt[]): void {
-  localStorage.setItem(STORAGE_KEYS.RECEIPTS, JSON.stringify(receipts));
-}
-
-export function getOrders(): Order[] {
-  return JSON.parse(localStorage.getItem(STORAGE_KEYS.ORDERS) || "[]");
-}
-
-export function setOrders(orders: Order[]): void {
-  localStorage.setItem(STORAGE_KEYS.ORDERS, JSON.stringify(orders));
-}
-
-export function getNotifications(): Notification[] {
-  return JSON.parse(localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS) || "[]");
-}
-
-export function setNotifications(notifications: Notification[]): void {
-  localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(notifications));
-}
-
+// ─── دوال السلة (تظل في localStorage) ────────────────────────
 export function getCart(): CartItem[] {
   return JSON.parse(localStorage.getItem(STORAGE_KEYS.CART) || "[]");
 }
@@ -526,6 +896,7 @@ export function setCart(cart: CartItem[]): void {
   localStorage.setItem(STORAGE_KEYS.CART, JSON.stringify(cart));
 }
 
+// ─── دوال المستخدم الحالي (تظل في localStorage) ──────────────
 export function getCurrentUser(): Pharmacy | null {
   const data = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
   return data ? JSON.parse(data) : null;
@@ -539,6 +910,62 @@ export function setCurrentUser(user: Pharmacy | null): void {
   }
 }
 
+// ─── دوال إعادة حساب الدين ────────────────────────────────────
+export async function recalculatePharmacyDebt(pharmacyId: string): Promise<void> {
+  const receipts = await getReceipts();
+  const approved = receipts.filter(r => r.pharmacyId === pharmacyId && r.status === 'approved');
+  const totalPaid = approved.reduce((sum, r) => sum + r.amount, 0);
+  
+  const orders = await getOrders();
+  const pharmacyOrders = orders.filter(o => o.pharmacyId === pharmacyId);
+  const totalPurchases = pharmacyOrders.reduce((sum, o) => sum + o.total, 0);
+  
+  const pharmacies = await getPharmacies();
+  const index = pharmacies.findIndex(p => p.id === pharmacyId);
+  if (index === -1) return;
+  
+  pharmacies[index].totalPaid = totalPaid;
+  pharmacies[index].totalDebt = Math.max(0, totalPurchases - totalPaid);
+  await setPharmacies(pharmacies);
+  
+  const currentUser = getCurrentUser();
+  if (currentUser && currentUser.id === pharmacyId) {
+    setCurrentUser(pharmacies[index]);
+  }
+}
+
+// ─── دوال التقييم ──────────────────────────────────────────────
+export async function addRating(
+  medicineId: string,
+  userId: string,
+  userName: string,
+  rating: number,
+  comment: string
+): Promise<void> {
+  const medicines = await getMedicines();
+  const med = medicines.find(m => m.id === medicineId);
+  if (!med) return;
+  
+  const newRating: Rating = {
+    userId,
+    userName,
+    rating,
+    comment,
+    timestamp: new Date().toISOString(),
+  };
+  
+  med.ratings.push(newRating);
+  await setMedicines(medicines);
+}
+
+export async function getMedicineAverageRating(medicineId: string): Promise<number> {
+  const med = await getMedicineById(medicineId);
+  if (!med || med.ratings.length === 0) return 0;
+  const sum = med.ratings.reduce((s, r) => s + r.rating, 0);
+  return Math.round((sum / med.ratings.length) * 10) / 10;
+}
+
+// ─── دوال مساعدة ──────────────────────────────────────────────
 export function generateId(prefix: string): string {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
@@ -558,131 +985,7 @@ export function formatCurrency(amount: number): string {
   return `${amount.toLocaleString("ar-EG", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ₪`;
 }
 
-// ─── Browser Notification ─────────────────────────────────────
-export function sendBrowserNotification(title: string, body: string, icon?: string) {
-  if (!('Notification' in window)) {
-    console.warn('Notifications not supported');
-    return;
-  }
-  if (Notification.permission === 'granted') {
-    try {
-      const notification = new Notification(title, {
-        body: body,
-        icon: icon || '/logo.png',
-        silent: false,
-      });
-      setTimeout(() => notification.close(), 5000);
-    } catch (error) {
-      console.warn('Failed to show notification:', error);
-    }
-  } else if (Notification.permission === 'default') {
-    Notification.requestPermission().then(permission => {
-      if (permission === 'granted') {
-        sendBrowserNotification(title, body, icon);
-      }
-    });
-  } else {
-    console.warn('Notifications blocked by user');
-  }
-}
-
-// ─── دوال جديدة ──────────────────────────────────────────────
-
-export function getLowStockMedicines(threshold: number = 50): Medicine[] {
-  return getMedicines().filter(m => m.stock < threshold);
-}
-
-export function addStockMovement(
-  medicineId: string,
-  type: 'in' | 'out',
-  quantity: number,
-  note: string = ''
-): void {
-  const medicines = getMedicines();
-  const index = medicines.findIndex(m => m.id === medicineId);
-  if (index === -1) return;
-  const movement: StockMovement = {
-    id: generateId('mov'),
-    type,
-    quantity,
-    note,
-    timestamp: new Date().toISOString(),
-  };
-  medicines[index].stockMovements.push(movement);
-  medicines[index].stock += type === 'in' ? quantity : -quantity;
-  if (medicines[index].stock < 0) medicines[index].stock = 0;
-  setMedicines(medicines);
-}
-
-export function addRating(
-  medicineId: string,
-  userId: string,
-  userName: string,
-  rating: number,
-  comment: string
-): void {
-  const medicines = getMedicines();
-  const index = medicines.findIndex(m => m.id === medicineId);
-  if (index === -1) return;
-  const newRating: Rating = {
-    userId,
-    userName,
-    rating,
-    comment,
-    timestamp: new Date().toISOString(),
-  };
-  medicines[index].ratings.push(newRating);
-  setMedicines(medicines);
-}
-
-export function getMedicineAverageRating(medicineId: string): number {
-  const med = getMedicines().find(m => m.id === medicineId);
-  if (!med || med.ratings.length === 0) return 0;
-  const sum = med.ratings.reduce((s, r) => s + r.rating, 0);
-  return Math.round((sum / med.ratings.length) * 10) / 10;
-}
-
-export function sendMessage(pharmacyId: string, senderId: string, senderName: string, text: string): void {
-  const pharmacies = getPharmacies();
-  const index = pharmacies.findIndex(p => p.id === pharmacyId);
-  if (index === -1) return;
-  const newMessage: Message = {
-    id: generateId('msg'),
-    senderId,
-    senderName,
-    text,
-    timestamp: new Date().toISOString(),
-    read: false,
-  };
-  pharmacies[index].messages.push(newMessage);
-  setPharmacies(pharmacies);
-}
-
-export function getMessages(pharmacyId: string): Message[] {
-  const pharmacies = getPharmacies();
-  const pharm = pharmacies.find(p => p.id === pharmacyId);
-  return pharm?.messages || [];
-}
-
-export const ADMIN_CREDENTIALS = {
-  username: "admin",
-  password: "admin123",
-};
-
-// ─── دالة addNotification ──────────────────────────────────────
-export function addNotification(message: string, type: "info" | "success" | "warning" = "info"): void {
-  const notifications = getNotifications();
-  const newNotification: Notification = {
-    id: generateId("notif"),
-    message,
-    timestamp: new Date().toISOString(),
-    read: false,
-    type,
-  };
-  setNotifications([newNotification, ...notifications]);
-}
-
-// ─── دوال البونص (معدلة بشكل صحيح) ──────────────────────────
+// ─── دوال البونص ──────────────────────────────────────────────
 export function parseBonus(bonus: string): { paid: number; free: number } | null {
   if (!bonus) return null;
   const parts = bonus.split('+');
@@ -712,65 +1015,30 @@ export function getSavings(originalPrice: number, bonus: string, quantity: numbe
   return (originalPrice - discountedPrice) * quantity;
 }
 
-// ─── دوال المخزون ──────────────────────────────────────────────
-export function updateStockAfterOrder(order: Order): void {
-  const medicines = getMedicines();
-  order.items.forEach(item => {
-    const index = medicines.findIndex(m => m.id === item.medicineId);
-    if (index !== -1) {
-      medicines[index].stock -= item.quantity;
-      if (medicines[index].stock < 0) medicines[index].stock = 0;
+// ─── Browser Notification ─────────────────────────────────────
+export function sendBrowserNotification(title: string, body: string, icon?: string) {
+  if (!('Notification' in window)) {
+    console.warn('Notifications not supported');
+    return;
+  }
+  if (Notification.permission === 'granted') {
+    try {
+      const notification = new Notification(title, {
+        body: body,
+        icon: icon || '/logo.png',
+        silent: false,
+      });
+      setTimeout(() => notification.close(), 5000);
+    } catch (error) {
+      console.warn('Failed to show notification:', error);
     }
-  });
-  setMedicines(medicines);
-}
-
-// ─── دوال الصيدلية ─────────────────────────────────────────────
-export function updatePharmacy(pharmacyId: string, updates: Partial<Pharmacy>): boolean {
-  const pharmacies = getPharmacies();
-  const index = pharmacies.findIndex(p => p.id === pharmacyId);
-  if (index === -1) return false;
-  pharmacies[index] = { ...pharmacies[index], ...updates };
-  setPharmacies(pharmacies);
-  const currentUser = getCurrentUser();
-  if (currentUser && currentUser.id === pharmacyId) {
-    setCurrentUser(pharmacies[index]);
-  }
-  return true;
-}
-
-export function resetPharmacyPassword(pharmacyId: string, newPassword: string): boolean {
-  if (newPassword.length < 6) return false;
-  const pharmacies = getPharmacies();
-  const index = pharmacies.findIndex(p => p.id === pharmacyId);
-  if (index === -1) return false;
-  pharmacies[index].password = newPassword;
-  setPharmacies(pharmacies);
-  const currentUser = getCurrentUser();
-  if (currentUser && currentUser.id === pharmacyId) {
-    setCurrentUser(pharmacies[index]);
-  }
-  return true;
-}
-
-// ─── دالة إعادة حساب الدين تلقائياً ──────────────────────────
-export function recalculatePharmacyDebt(pharmacyId: string): void {
-  const receipts = getReceipts().filter(r => r.pharmacyId === pharmacyId && r.status === 'approved');
-  const totalPaid = receipts.reduce((sum, r) => sum + r.amount, 0);
-  
-  const orders = getOrders().filter(o => o.pharmacyId === pharmacyId);
-  const totalPurchases = orders.reduce((sum, o) => sum + o.total, 0);
-  
-  const pharmacies = getPharmacies();
-  const index = pharmacies.findIndex(p => p.id === pharmacyId);
-  if (index === -1) return;
-  
-  pharmacies[index].totalPaid = totalPaid;
-  pharmacies[index].totalDebt = Math.max(0, totalPurchases - totalPaid);
-  setPharmacies(pharmacies);
-  
-  const currentUser = getCurrentUser();
-  if (currentUser && currentUser.id === pharmacyId) {
-    setCurrentUser(pharmacies[index]);
+  } else if (Notification.permission === 'default') {
+    Notification.requestPermission().then(permission => {
+      if (permission === 'granted') {
+        sendBrowserNotification(title, body, icon);
+      }
+    });
+  } else {
+    console.warn('Notifications blocked by user');
   }
 }
