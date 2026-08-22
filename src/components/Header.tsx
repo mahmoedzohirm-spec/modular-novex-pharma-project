@@ -61,6 +61,10 @@ export default function Header({
               src="/logo.png"
               alt="Novex Pharma"
               className="w-9 h-9 rounded-xl object-cover shadow-md"
+              onError={(e) => {
+                // إذا لم توجد الصورة، نظهر النص
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
             />
             <div className="text-right hidden sm:block">
               <div className="font-bold text-slate-900 text-lg leading-none" style={{ fontFamily: "'Tajawal', sans-serif" }}>
