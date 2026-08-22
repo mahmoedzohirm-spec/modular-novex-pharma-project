@@ -1,11 +1,12 @@
 // ============================================================
-// hooks/useCart.ts — Cart Logic with Bonus Discount (معدل)
+// hooks/useCart.ts — Cart Logic with Bonus Discount
 // ============================================================
 import { useState, useCallback } from "react";
 import { CartItem, getCart, setCart, getDiscountedPrice, getSavings } from "../config/data";
 
 export function useCart() {
   const [cart, setCartState] = useState<CartItem[]>(getCart());
+  const [isCartOpen, setIsCartOpen] = useState(false); // ✅ إضافة حالة فتح السلة
 
   const syncCart = useCallback((items: CartItem[]) => {
     setCart(items);
@@ -17,12 +18,10 @@ export function useCart() {
       const current = getCart();
       const existing = current.find((c) => c.medicineId === item.medicineId);
       
-      // ✅ حساب السعر المخفض مع مراعاة الكمية
       const discountedPrice = getDiscountedPrice(item.price, item.bonus || '', quantity);
       
       let updated: CartItem[];
       if (existing) {
-        // إذا كان العنصر موجوداً، نزيد الكمية ونعيد حساب السعر المخفض
         const newQuantity = existing.quantity + quantity;
         const newDiscountedPrice = getDiscountedPrice(item.price, item.bonus || '', newQuantity);
         updated = current.map((c) =>
@@ -62,7 +61,6 @@ export function useCart() {
       }
       const updated = getCart().map((c) => {
         if (c.medicineId === medicineId) {
-          // ✅ إعادة حساب السعر المخفض عند تغيير الكمية
           const discountedPrice = getDiscountedPrice(c.originalPrice || c.price, c.bonus || '', quantity);
           return { ...c, quantity, price: discountedPrice };
         }
@@ -77,17 +75,24 @@ export function useCart() {
     syncCart([]);
   }, [syncCart]);
 
-  // حساب الإجمالي (السعر المخفض × الكمية)
   const cartTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
-
-  // حساب التوفير الكلي
   const savingsTotal = cart.reduce((sum, item) => {
     const original = item.originalPrice || item.price;
     const discounted = item.price;
     return sum + (original - discounted) * item.quantity;
   }, 0);
-
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
 
-  return { cart, addToCart, removeFromCart, updateQuantity, clearCart, cartTotal, savingsTotal, cartCount };
+  return {
+    cart,
+    addToCart,
+    removeFromCart,
+    updateQuantity,
+    clearCart,
+    cartTotal,
+    savingsTotal,
+    cartCount,
+    isCartOpen,
+    setIsCartOpen,
+  };
 }
