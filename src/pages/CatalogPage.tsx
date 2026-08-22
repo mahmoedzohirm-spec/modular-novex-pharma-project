@@ -1,5 +1,5 @@
 // ============================================================
-// pages/CatalogPage.tsx — Medicine Catalog & Ordering (Mobile-Optimized)
+// pages/CatalogPage.tsx — Medicine Catalog & Ordering
 // ============================================================
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useAuth } from "../auth/AuthContext";
@@ -19,6 +19,7 @@ import {
   getMedicineAverageRating,
   updateStockAfterOrder,
   addNotification,
+  initializeStorage,
 } from "../config/data";
 import BarcodeScanner from "../components/BarcodeScanner";
 import RatingStars from "../components/RatingStars";
@@ -29,9 +30,7 @@ interface CatalogPageProps {
 
 const CATEGORIES = ["الكل", "مضادات حيوية", "مسكنات", "الجهاز الهضمي", "السكري", "القلب والأوعية", "مضادات الحساسية", "فيتامينات ومكملات"];
 
-// ============================================================
 // Cart Sidebar Component
-// ============================================================
 function CartSidebar({
   isOpen,
   onClose,
@@ -56,9 +55,7 @@ function CartSidebar({
   return (
     <>
       <div
-        className={`fixed inset-0 bg-black/40 z-50 transition-opacity duration-300 ${
-          isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
-        }`}
+        className={`fixed inset-0 bg-black/40 z-50 transition-opacity duration-300 ${isOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`}
         onClick={onClose}
       />
       <div
@@ -203,9 +200,7 @@ function CartSidebar({
   );
 }
 
-// ============================================================
-// Medicine Card Component (Optimized for Mobile)
-// ============================================================
+// Medicine Card Component
 function MedicineCard({
   medicine,
   onAddToCart,
@@ -224,19 +219,16 @@ function MedicineCard({
   const avgRating = getMedicineAverageRating(medicine.id);
 
   const handleAdd = () => {
-    if (!isLoggedIn) {
-      onLoginPrompt();
-      return;
-    }
+    if (!isLoggedIn) { onLoginPrompt(); return; }
     onAddToCart(medicine, qty);
     setAdded(true);
     setTimeout(() => setAdded(false), 1500);
   };
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-lg hover:border-blue-200 transition-all duration-300 group flex flex-col h-full">
+    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-lg hover:border-blue-200 transition-all duration-300 group flex flex-col">
       {/* Image */}
-      <div className="relative overflow-hidden h-32 sm:h-40 bg-slate-100">
+      <div className="relative overflow-hidden h-40 bg-slate-100">
         <img
           src={medicine.imageUrl}
           alt={medicine.name}
@@ -246,23 +238,20 @@ function MedicineCard({
           }}
         />
         <div className="absolute top-2 right-2 flex flex-wrap gap-1">
-          {medicine.categories.slice(0, 2).map((cat) => (
-            <span
-              key={cat}
-              className="bg-white/90 backdrop-blur-sm text-blue-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-blue-200 shadow-sm"
-            >
+          {medicine.categories.slice(0, 2).map(cat => (
+            <span key={cat} className="bg-white/90 backdrop-blur-sm text-blue-700 text-xs font-bold px-2 py-0.5 rounded-full border border-blue-200 shadow-sm">
               {cat}
             </span>
           ))}
           {medicine.categories.length > 2 && (
-            <span className="bg-white/90 backdrop-blur-sm text-blue-700 text-[10px] font-bold px-1.5 py-0.5 rounded-full border border-blue-200 shadow-sm">
+            <span className="bg-white/90 backdrop-blur-sm text-blue-700 text-xs font-bold px-2 py-0.5 rounded-full border border-blue-200 shadow-sm">
               +{medicine.categories.length - 2}
             </span>
           )}
         </div>
         {medicine.bonus && (
           <div className="absolute top-2 left-2">
-            <span className="bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+            <span className="bg-blue-600 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-sm">
               🎁 {medicine.bonus}
             </span>
           </div>
@@ -270,32 +259,32 @@ function MedicineCard({
       </div>
 
       {/* Content */}
-      <div className="p-3 flex flex-col flex-1">
+      <div className="p-4 flex flex-col flex-1">
         <h3 className="font-bold text-slate-900 text-sm leading-tight mb-0.5 line-clamp-2">
           {medicine.name}
         </h3>
-        <p className="text-[10px] text-slate-400 italic mb-1">{medicine.genericName}</p>
-        <p className="text-[10px] text-slate-500 mb-2 line-clamp-2 flex-1">{medicine.description}</p>
+        <p className="text-xs text-slate-400 italic mb-2">{medicine.genericName}</p>
+        <p className="text-xs text-slate-500 mb-3 line-clamp-2 flex-1">{medicine.description}</p>
 
         {/* Rating */}
-        <div className="flex items-center gap-1 mb-1">
+        <div className="flex items-center gap-1 mb-2">
           <RatingStars rating={avgRating} readonly size="sm" />
-          <span className="text-[10px] text-slate-400">({medicine.ratings.length})</span>
+          <span className="text-xs text-slate-400">({medicine.ratings.length})</span>
         </div>
 
-        {/* Price */}
-        <div className="mb-2">
-          <span className="text-base font-black text-blue-700">{formatCurrency(medicine.price)}</span>
-          <span className="text-[10px] text-slate-400 mr-1">/ علبة</span>
+        {/* Price - original only */}
+        <div className="mb-3">
+          <span className="text-lg font-black text-blue-700">{formatCurrency(medicine.price)}</span>
+          <span className="text-xs text-slate-400 mr-1">/ علبة</span>
         </div>
 
         {/* Quantity + Add + View Details */}
-        <div className="flex flex-col gap-1.5 mt-auto">
-          <div className="flex items-center gap-1.5">
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-2">
             <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden flex-shrink-0 bg-slate-50">
               <button
                 onClick={() => setQty(Math.max(1, qty - 1))}
-                className="px-1.5 py-1 hover:bg-slate-200 transition-colors text-slate-600 font-bold text-xs"
+                className="px-2 py-1.5 hover:bg-slate-200 transition-colors text-slate-600 font-bold text-xs"
               >
                 −
               </button>
@@ -304,18 +293,18 @@ function MedicineCard({
                 min="1"
                 value={qty}
                 onChange={(e) => setQty(Math.max(1, parseInt(e.target.value) || 1))}
-                className="w-8 text-center text-xs font-bold text-slate-800 bg-transparent outline-none border-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                className="w-12 text-center text-xs font-bold text-slate-800 bg-transparent outline-none border-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
               />
               <button
                 onClick={() => setQty(qty + 1)}
-                className="px-1.5 py-1 hover:bg-slate-200 transition-colors text-slate-600 font-bold text-xs"
+                className="px-2 py-1.5 hover:bg-slate-200 transition-colors text-slate-600 font-bold text-xs"
               >
                 +
               </button>
             </div>
             <button
               onClick={handleAdd}
-              className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all duration-200 flex items-center justify-center gap-1 ${
+              className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all duration-200 flex items-center justify-center gap-1 ${
                 added
                   ? "bg-green-500 text-white"
                   : "bg-blue-600 text-white hover:bg-blue-700 shadow-sm"
@@ -326,7 +315,7 @@ function MedicineCard({
           </div>
           <button
             onClick={() => onViewDetails(medicine.id)}
-            className="text-[10px] text-blue-600 hover:text-blue-800 font-medium text-center"
+            className="text-xs text-blue-600 hover:text-blue-800 font-medium text-center"
           >
             🔍 تفاصيل وتقييمات
           </button>
@@ -336,48 +325,75 @@ function MedicineCard({
   );
 }
 
-// ============================================================
-// Main CatalogPage Component
-// ============================================================
 export default function CatalogPage({ onNavigate }: CatalogPageProps) {
   const { currentUser, isLoggedIn, isAdmin } = useAuth();
-  const { cart, addToCart, updateQuantity, removeFromCart, clearCart, cartTotal, savingsTotal, cartCount, isCartOpen, setIsCartOpen } = useCart();
+  const { cart, addToCart, updateQuantity, removeFromCart, clearCart, cartTotal, savingsTotal, cartCount } = useCart();
   const [medicines, setMedicinesState] = useState<Medicine[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("الكل");
+  const [isCartOpen, setIsCartOpen] = useState(false);
   const [checkoutSuccess, setCheckoutSuccess] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
 
-  // ✅ مستمع لفتح السلة من الأزرار الخارجية (Header / BottomNav)
-  useEffect(() => {
-    const handleOpenCart = () => setIsCartOpen(true);
-    window.addEventListener('openCart', handleOpenCart);
-    return () => window.removeEventListener('openCart', handleOpenCart);
-  }, [setIsCartOpen]);
-
   // Load medicines
   useEffect(() => {
-    const loadMedicines = () => {
-      const data = getMedicines();
-      setMedicinesState(data);
+    const load = async () => {
+      try {
+        // تهيئة قاعدة البيانات بالبيانات الافتراضية إذا كانت فارغة
+        await initializeStorage();
+        const data = await getMedicines();
+        setMedicinesState(data);
+      } catch (error) {
+        console.error('Error loading medicines:', error);
+      } finally {
+        setLoading(false);
+      }
     };
-    loadMedicines();
+    load();
   }, []);
 
-  // Filter medicines
+  // ترتيب الأدوية بحيث الجديدة تظهر أولاً ثم الباقي أبجدياً
+  const sortedMedicines = useMemo(() => {
+    const copy = [...medicines];
+    const newMeds = copy.filter(m => (m.viewCount || 0) < 2);
+    const oldMeds = copy.filter(m => (m.viewCount || 0) >= 2);
+    const sortByName = (a: Medicine, b: Medicine) => a.name.localeCompare(b.name, 'ar');
+    newMeds.sort(sortByName);
+    oldMeds.sort(sortByName);
+    return [...newMeds, ...oldMeds];
+  }, [medicines]);
+
+  // زيادة viewCount للأدوية الجديدة بعد كل عرض
+  useEffect(() => {
+    const updateViewCount = async () => {
+      const hasNew = medicines.some(m => (m.viewCount || 0) < 2);
+      if (!hasNew) return;
+      const updated = medicines.map(m => {
+        if ((m.viewCount || 0) < 2) {
+          return { ...m, viewCount: (m.viewCount || 0) + 1 };
+        }
+        return m;
+      });
+      setMedicinesState(updated);
+      await setMedicines(updated);
+    };
+    updateViewCount();
+  }, [medicines]);
+
   const filteredMedicines = useMemo(() => {
-    return medicines.filter((m) => {
+    return sortedMedicines.filter((m) => {
       const matchSearch =
         !search ||
         m.name.toLowerCase().includes(search.toLowerCase()) ||
         m.genericName.toLowerCase().includes(search.toLowerCase()) ||
-        m.categories.some((cat) => cat.toLowerCase().includes(search.toLowerCase()));
+        m.categories.some(cat => cat.toLowerCase().includes(search.toLowerCase()));
       const matchCat = selectedCategory === "الكل" || m.categories.includes(selectedCategory);
       return matchSearch && matchCat;
     });
-  }, [medicines, search, selectedCategory]);
+  }, [sortedMedicines, search, selectedCategory]);
 
   const handleAddToCart = useCallback(
     (medicine: Medicine, qty: number) => {
@@ -395,56 +411,61 @@ export default function CatalogPage({ onNavigate }: CatalogPageProps) {
     [addToCart]
   );
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (!isLoggedIn || !currentUser) {
       setCheckoutError("يجب تسجيل الدخول أولاً لإتمام الطلب");
       return;
     }
     if (cart.length === 0) return;
 
-    const pharmacies = getPharmacies();
-    const updated = pharmacies.map((p) =>
-      p.id === currentUser.id ? { ...p, totalDebt: p.totalDebt + cartTotal } : p
-    );
-    setPharmacies(updated);
+    try {
+      const pharmacies = await getPharmacies();
+      const updated = pharmacies.map((p) =>
+        p.id === currentUser.id ? { ...p, totalDebt: p.totalDebt + cartTotal } : p
+      );
+      await setPharmacies(updated);
 
-    const orders = getOrders();
-    const newOrder = {
-      id: generateId("ord"),
-      pharmacyId: currentUser.id,
-      pharmacyName: currentUser.pharmacyName,
-      items: [...cart],
-      total: cartTotal,
-      timestamp: new Date().toISOString(),
-      status: "pending" as const,
-    };
-    setOrders([...orders, newOrder]);
+      const orders = await getOrders();
+      const newOrder = {
+        id: generateId("ord"),
+        pharmacyId: currentUser.id,
+        pharmacyName: currentUser.pharmacyName,
+        items: [...cart],
+        total: cartTotal,
+        timestamp: new Date().toISOString(),
+        status: "pending" as const,
+      };
+      await setOrders([...orders, newOrder]);
 
-    updateStockAfterOrder(newOrder);
+      await updateStockAfterOrder(newOrder);
 
-    clearCart();
-    setIsCartOpen(false);
-    setCheckoutSuccess(true);
-    sendBrowserNotification(
-      "📦 طلب جديد",
-      `تم إرسال طلب بقيمة ${formatCurrency(cartTotal)} من ${currentUser.pharmacyName}`,
-      "/vite.svg"
-    );
-    addNotification(`📦 تم إرسال طلب بقيمة ${formatCurrency(cartTotal)} من ${currentUser.pharmacyName}`, "success");
-    setTimeout(() => setCheckoutSuccess(false), 4000);
+      clearCart();
+      setIsCartOpen(false);
+      setCheckoutSuccess(true);
+      sendBrowserNotification(
+        '📦 طلب جديد',
+        `تم إرسال طلب بقيمة ${formatCurrency(cartTotal)} من ${currentUser.pharmacyName}`,
+        '/vite.svg'
+      );
+      await addNotification(`📦 تم إرسال طلب بقيمة ${formatCurrency(cartTotal)} من ${currentUser.pharmacyName}`, "success");
+      setTimeout(() => setCheckoutSuccess(false), 4000);
+    } catch (error) {
+      console.error('Checkout error:', error);
+      setCheckoutError("حدث خطأ أثناء إرسال الطلب");
+    }
   };
 
   const handleBarcodeDetected = (barcode: string) => {
-    const found = medicines.find((m) => m.barcode === barcode);
+    const found = medicines.find(m => m.barcode === barcode);
     if (found) {
-      onNavigate("medicine-details", { id: found.id });
+      onNavigate('medicine-details', { id: found.id });
     } else {
-      alert("لم يتم العثور على دواء بهذا الباركود");
+      alert('لم يتم العثور على دواء بهذا الباركود');
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20" style={{ fontFamily: "'Tajawal', sans-serif" }}>
+    <div className="min-h-screen bg-slate-50" style={{ fontFamily: "'Tajawal', sans-serif" }}>
       {/* Barcode Scanner */}
       {showScanner && (
         <BarcodeScanner onDetected={handleBarcodeDetected} onClose={() => setShowScanner(false)} />
@@ -482,10 +503,7 @@ export default function CatalogPage({ onNavigate }: CatalogPageProps) {
                 إلغاء
               </button>
               <button
-                onClick={() => {
-                  setShowLoginPrompt(false);
-                  onNavigate("login");
-                }}
+                onClick={() => { setShowLoginPrompt(false); onNavigate("login"); }}
                 className="flex-1 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700"
               >
                 تسجيل الدخول
@@ -496,44 +514,33 @@ export default function CatalogPage({ onNavigate }: CatalogPageProps) {
       )}
 
       {/* Hero Banner */}
-      <div className="relative bg-gradient-to-l from-blue-700 via-blue-600 to-blue-800 text-white overflow-hidden">
-        <div className="absolute inset-0 opacity-10">
-          <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
-            <path d="M0 0 L100 0 L100 100 L0 100 Z" fill="white" />
-          </svg>
-        </div>
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="text-center sm:text-right">
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-black mb-2 leading-tight">
-                مرحباً بك في <span className="text-yellow-300">Novex Pharma</span>
-              </h1>
-              <p className="text-blue-100 text-sm sm:text-base max-w-md">
-                اكتشف أفضل الأدوية بأسعار تنافسية وعروض حصرية
+      <div className="bg-gradient-to-l from-blue-700 via-blue-600 to-blue-800 text-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-black mb-2">كتالوج الأدوية</h1>
+              <p className="text-blue-100 text-sm sm:text-base">
+                تصفح أكثر من {medicines.length} صنف دوائي بأفضل الأسعار وعروض البونص
               </p>
-              <div className="flex items-center justify-center sm:justify-start gap-4 mt-3 flex-wrap">
+              <div className="flex items-center gap-4 mt-3 flex-wrap">
                 <div className="flex items-center gap-1.5 text-blue-100 text-xs">
                   <span className="w-2 h-2 bg-green-400 rounded-full"></span>
-                  توصيل سريع
+                  توصيل سريع لجميع المناطق
                 </div>
                 <div className="flex items-center gap-1.5 text-blue-100 text-xs">
                   <span className="w-2 h-2 bg-yellow-400 rounded-full"></span>
-                  عروض بونص
-                </div>
-                <div className="flex items-center gap-1.5 text-blue-100 text-xs">
-                  <span className="w-2 h-2 bg-purple-400 rounded-full"></span>
-                  {medicines.length}+ صنف
+                  عروض بونص حصرية
                 </div>
               </div>
             </div>
             <div className="flex gap-3 flex-wrap justify-center sm:justify-end">
-              <div className="bg-white/10 backdrop-blur-sm rounded-xl px-4 py-2 text-center border border-white/20">
-                <div className="text-xl font-black">{medicines.length}</div>
-                <div className="text-[10px] text-blue-200">دواء</div>
+              <div className="bg-white/10 backdrop-blur-sm rounded-xl px-4 py-3 text-center border border-white/20">
+                <div className="text-2xl font-black">{medicines.length}+</div>
+                <div className="text-xs text-blue-200">صنف دوائي</div>
               </div>
-              <div className="bg-white/10 backdrop-blur-sm rounded-xl px-4 py-2 text-center border border-white/20">
-                <div className="text-xl font-black">{CATEGORIES.length - 1}</div>
-                <div className="text-[10px] text-blue-200">تصنيف</div>
+              <div className="bg-white/10 backdrop-blur-sm rounded-xl px-4 py-3 text-center border border-white/20">
+                <div className="text-2xl font-black">{CATEGORIES.length - 1}</div>
+                <div className="text-xs text-blue-200">تصنيف</div>
               </div>
             </div>
           </div>
@@ -554,19 +561,11 @@ export default function CatalogPage({ onNavigate }: CatalogPageProps) {
                 className="w-full px-4 py-2.5 pr-10 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm bg-slate-50"
                 dir="rtl"
               />
-              <svg
-                className="absolute right-3 top-3 w-4 h-4 text-slate-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
+              <svg className="absolute right-3 top-3 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               {search && (
-                <button
-                  onClick={() => setSearch("")}
-                  className="absolute left-3 top-3 text-slate-400 hover:text-slate-600"
-                >
+                <button onClick={() => setSearch("")} className="absolute left-3 top-3 text-slate-400 hover:text-slate-600">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                   </svg>
@@ -605,12 +604,12 @@ export default function CatalogPage({ onNavigate }: CatalogPageProps) {
           </div>
 
           {/* Category filters */}
-          <div className="flex flex-wrap gap-1.5 mt-3 pb-1">
+          <div className="flex flex-wrap gap-2 mt-3 overflow-x-auto pb-1 scrollbar-hide">
             {CATEGORIES.map((cat) => (
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-2.5 py-1 rounded-full text-xs font-semibold transition-all whitespace-nowrap ${
+                className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
                   selectedCategory === cat
                     ? "bg-blue-600 text-white shadow-sm"
                     : "bg-slate-100 text-slate-600 hover:bg-slate-200"
@@ -623,54 +622,54 @@ export default function CatalogPage({ onNavigate }: CatalogPageProps) {
         </div>
       </div>
 
-      {/* Success/Error Toasts */}
+      {/* Success toast */}
       {checkoutSuccess && (
-        <div className="fixed top-20 right-4 z-50 bg-green-600 text-white px-5 py-3 rounded-xl shadow-lg flex items-center gap-2 animate-fade-in text-sm max-w-xs">
-          <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="fixed top-20 right-4 z-50 bg-green-600 text-white px-5 py-3 rounded-xl shadow-lg flex items-center gap-2 animate-fade-in">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <span>تم إرسال طلبك بنجاح! سيتم التواصل معك قريباً.</span>
+          <span className="text-sm font-bold">تم إرسال طلبك بنجاح! سيتم التواصل معك قريباً.</span>
         </div>
       )}
 
       {checkoutError && (
-        <div className="fixed top-20 right-4 z-50 bg-red-600 text-white px-5 py-3 rounded-xl shadow-lg flex items-center gap-2 text-sm max-w-xs">
-          <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="fixed top-20 right-4 z-50 bg-red-600 text-white px-5 py-3 rounded-xl shadow-lg flex items-center gap-2">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
-          <span>{checkoutError}</span>
-          <button onClick={() => setCheckoutError("")} className="mr-2 text-white/80 hover:text-white">
-            ✕
-          </button>
+          <span className="text-sm font-bold">{checkoutError}</span>
+          <button onClick={() => setCheckoutError("")} className="mr-2">✕</button>
         </div>
       )}
 
-      {/* Main Content - All Medicines Grid */}
+      {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex items-center justify-between mb-4">
+        {/* Results info */}
+        <div className="flex items-center justify-between mb-5">
           <p className="text-sm text-slate-500">
-            عرض <span className="font-bold text-slate-700">{filteredMedicines.length}</span> دواء
+            عرض <span className="font-bold text-slate-700">{filteredMedicines.length}</span> من أصل{" "}
+            <span className="font-bold text-slate-700">{medicines.length}</span> صنف
             {selectedCategory !== "الكل" && (
               <span className="mr-1">
                 في <span className="text-blue-600 font-bold">{selectedCategory}</span>
               </span>
             )}
           </p>
-          {(search || selectedCategory !== "الكل") && (
+          {!isLoggedIn && (
             <button
-              onClick={() => {
-                setSearch("");
-                setSelectedCategory("الكل");
-              }}
-              className="text-xs text-blue-600 hover:underline"
+              onClick={() => onNavigate("login")}
+              className="text-sm text-blue-600 hover:underline font-medium flex items-center gap-1"
             >
-              إعادة ضبط الفلاتر
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
+              </svg>
+              سجّل دخولك للطلب
             </button>
           )}
         </div>
 
         {filteredMedicines.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+          <div className="flex flex-col items-center justify-center py-20 text-slate-400">
             <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-4">
               <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -678,9 +677,15 @@ export default function CatalogPage({ onNavigate }: CatalogPageProps) {
             </div>
             <p className="font-semibold text-slate-600">لا توجد نتائج</p>
             <p className="text-sm mt-1">جرب البحث بكلمات مختلفة أو تصفية مختلفة</p>
+            <button
+              onClick={() => { setSearch(""); setSelectedCategory("الكل"); }}
+              className="mt-4 text-blue-600 text-sm font-medium hover:underline"
+            >
+              إعادة ضبط الفلاتر
+            </button>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             {filteredMedicines.map((medicine) => (
               <MedicineCard
                 key={medicine.id}
@@ -688,7 +693,7 @@ export default function CatalogPage({ onNavigate }: CatalogPageProps) {
                 onAddToCart={handleAddToCart}
                 isLoggedIn={isLoggedIn && !isAdmin}
                 onLoginPrompt={() => setShowLoginPrompt(true)}
-                onViewDetails={(id) => onNavigate("medicine-details", { id })}
+                onViewDetails={(id) => onNavigate('medicine-details', { id })}
               />
             ))}
           </div>
@@ -697,7 +702,7 @@ export default function CatalogPage({ onNavigate }: CatalogPageProps) {
 
       {/* Floating Cart Bar (mobile) */}
       {isLoggedIn && !isAdmin && cartCount > 0 && (
-        <div className="fixed bottom-20 left-4 right-4 z-40 sm:hidden">
+        <div className="fixed bottom-4 left-4 right-4 z-40 sm:hidden">
           <button
             onClick={() => setIsCartOpen(true)}
             className="w-full bg-blue-600 text-white py-3.5 px-5 rounded-2xl shadow-xl flex items-center justify-between font-bold text-sm"
