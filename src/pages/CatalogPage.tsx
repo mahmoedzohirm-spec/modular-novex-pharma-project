@@ -1,5 +1,5 @@
 // ============================================================
-// pages/CatalogPage.tsx — Medicine Catalog (Mobile-Optimized, No Sections)
+// pages/CatalogPage.tsx — Medicine Catalog & Ordering (Mobile-Optimized)
 // ============================================================
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useAuth } from "../auth/AuthContext";
@@ -349,6 +349,13 @@ export default function CatalogPage({ onNavigate }: CatalogPageProps) {
   const [checkoutError, setCheckoutError] = useState("");
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
+
+  // ✅ مستمع لفتح السلة من الأزرار الخارجية (Header / BottomNav)
+  useEffect(() => {
+    const handleOpenCart = () => setIsCartOpen(true);
+    window.addEventListener('openCart', handleOpenCart);
+    return () => window.removeEventListener('openCart', handleOpenCart);
+  }, [setIsCartOpen]);
 
   // Load medicines
   useEffect(() => {
