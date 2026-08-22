@@ -1,5 +1,5 @@
 // ============================================================
-// pages/CatalogPage.tsx — Medicine Catalog & Ordering (Mobile-Optimized)
+// pages/CatalogPage.tsx — Medicine Catalog (Mobile-Optimized, No Sections)
 // ============================================================
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useAuth } from "../auth/AuthContext";
@@ -29,7 +29,9 @@ interface CatalogPageProps {
 
 const CATEGORIES = ["الكل", "مضادات حيوية", "مسكنات", "الجهاز الهضمي", "السكري", "القلب والأوعية", "مضادات الحساسية", "فيتامينات ومكملات"];
 
+// ============================================================
 // Cart Sidebar Component
+// ============================================================
 function CartSidebar({
   isOpen,
   onClose,
@@ -66,6 +68,7 @@ function CartSidebar({
           fontFamily: "'Tajawal', sans-serif",
         }}
       >
+        {/* Header */}
         <div className="bg-blue-600 px-5 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2 text-white">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -85,6 +88,7 @@ function CartSidebar({
           </button>
         </div>
 
+        {/* Items */}
         <div className="flex-1 overflow-y-auto p-4 space-y-3">
           {cart.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-4">
@@ -161,6 +165,7 @@ function CartSidebar({
           )}
         </div>
 
+        {/* Footer */}
         {cart.length > 0 && (
           <div className="p-4 border-t border-slate-200 bg-white space-y-3">
             <div className="flex items-center justify-between text-sm">
@@ -198,7 +203,9 @@ function CartSidebar({
   );
 }
 
-// Medicine Card Component
+// ============================================================
+// Medicine Card Component (Optimized for Mobile)
+// ============================================================
 function MedicineCard({
   medicine,
   onAddToCart,
@@ -228,6 +235,7 @@ function MedicineCard({
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-lg hover:border-blue-200 transition-all duration-300 group flex flex-col h-full">
+      {/* Image */}
       <div className="relative overflow-hidden h-32 sm:h-40 bg-slate-100">
         <img
           src={medicine.imageUrl}
@@ -261,6 +269,7 @@ function MedicineCard({
         )}
       </div>
 
+      {/* Content */}
       <div className="p-3 flex flex-col flex-1">
         <h3 className="font-bold text-slate-900 text-sm leading-tight mb-0.5 line-clamp-2">
           {medicine.name}
@@ -268,16 +277,19 @@ function MedicineCard({
         <p className="text-[10px] text-slate-400 italic mb-1">{medicine.genericName}</p>
         <p className="text-[10px] text-slate-500 mb-2 line-clamp-2 flex-1">{medicine.description}</p>
 
+        {/* Rating */}
         <div className="flex items-center gap-1 mb-1">
           <RatingStars rating={avgRating} readonly size="sm" />
           <span className="text-[10px] text-slate-400">({medicine.ratings.length})</span>
         </div>
 
+        {/* Price */}
         <div className="mb-2">
           <span className="text-base font-black text-blue-700">{formatCurrency(medicine.price)}</span>
           <span className="text-[10px] text-slate-400 mr-1">/ علبة</span>
         </div>
 
+        {/* Quantity + Add + View Details */}
         <div className="flex flex-col gap-1.5 mt-auto">
           <div className="flex items-center gap-1.5">
             <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden flex-shrink-0 bg-slate-50">
@@ -324,72 +336,12 @@ function MedicineCard({
   );
 }
 
-// Section Component
-function ProductSection({
-  title,
-  medicines,
-  onAddToCart,
-  isLoggedIn,
-  onLoginPrompt,
-  onViewDetails,
-  onViewAll,
-  viewAllLabel = "عرض الكل",
-}: {
-  title: string;
-  medicines: Medicine[];
-  onAddToCart: (medicine: Medicine, qty: number) => void;
-  isLoggedIn: boolean;
-  onLoginPrompt: () => void;
-  onViewDetails: (id: string) => void;
-  onViewAll?: () => void;
-  viewAllLabel?: string;
-}) {
-  if (medicines.length === 0) return null;
-
-  return (
-    <div className="mb-6">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-lg font-bold text-slate-800">{title}</h2>
-        {onViewAll && (
-          <button
-            onClick={onViewAll}
-            className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-          >
-            {viewAllLabel} ←
-          </button>
-        )}
-      </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-        {medicines.slice(0, 8).map((medicine) => (
-          <MedicineCard
-            key={medicine.id}
-            medicine={medicine}
-            onAddToCart={onAddToCart}
-            isLoggedIn={isLoggedIn}
-            onLoginPrompt={onLoginPrompt}
-            onViewDetails={onViewDetails}
-          />
-        ))}
-      </div>
-    </div>
-  );
-}
-
+// ============================================================
+// Main CatalogPage Component
+// ============================================================
 export default function CatalogPage({ onNavigate }: CatalogPageProps) {
   const { currentUser, isLoggedIn, isAdmin } = useAuth();
-  const {
-    cart,
-    addToCart,
-    updateQuantity,
-    removeFromCart,
-    clearCart,
-    cartTotal,
-    savingsTotal,
-    cartCount,
-    isCartOpen,
-    setIsCartOpen,
-  } = useCart();
-
+  const { cart, addToCart, updateQuantity, removeFromCart, clearCart, cartTotal, savingsTotal, cartCount, isCartOpen, setIsCartOpen } = useCart();
   const [medicines, setMedicinesState] = useState<Medicine[]>([]);
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("الكل");
@@ -398,7 +350,7 @@ export default function CatalogPage({ onNavigate }: CatalogPageProps) {
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
 
-  // تحميل الأدوية
+  // Load medicines
   useEffect(() => {
     const loadMedicines = () => {
       const data = getMedicines();
@@ -407,18 +359,9 @@ export default function CatalogPage({ onNavigate }: CatalogPageProps) {
     loadMedicines();
   }, []);
 
-  // تصنيف المنتجات إلى أقسام
-  const { newArrivals, mostPopular, specialOffers, allMedicines } = useMemo(() => {
-    const sorted = [...medicines];
-    const newArrivals = sorted.filter((m) => (m.viewCount || 0) < 2);
-    const mostPopular = sorted.filter((m) => (m.viewCount || 0) >= 2);
-    const specialOffers = sorted.filter((m) => m.bonus);
-    const allMedicines = [...sorted].sort((a, b) => a.name.localeCompare(b.name, "ar"));
-    return { newArrivals, mostPopular, specialOffers, allMedicines };
-  }, [medicines]);
-
+  // Filter medicines
   const filteredMedicines = useMemo(() => {
-    return allMedicines.filter((m) => {
+    return medicines.filter((m) => {
       const matchSearch =
         !search ||
         m.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -427,7 +370,7 @@ export default function CatalogPage({ onNavigate }: CatalogPageProps) {
       const matchCat = selectedCategory === "الكل" || m.categories.includes(selectedCategory);
       return matchSearch && matchCat;
     });
-  }, [allMedicines, search, selectedCategory]);
+  }, [medicines, search, selectedCategory]);
 
   const handleAddToCart = useCallback(
     (medicine: Medicine, qty: number) => {
@@ -493,14 +436,14 @@ export default function CatalogPage({ onNavigate }: CatalogPageProps) {
     }
   };
 
-  const isSearching = search.trim() !== "" || selectedCategory !== "الكل";
-
   return (
-    <div className="min-h-screen bg-slate-50" style={{ fontFamily: "'Tajawal', sans-serif" }}>
+    <div className="min-h-screen bg-slate-50 pb-20" style={{ fontFamily: "'Tajawal', sans-serif" }}>
+      {/* Barcode Scanner */}
       {showScanner && (
         <BarcodeScanner onDetected={handleBarcodeDetected} onClose={() => setShowScanner(false)} />
       )}
 
+      {/* Cart Sidebar */}
       <CartSidebar
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
@@ -513,6 +456,7 @@ export default function CatalogPage({ onNavigate }: CatalogPageProps) {
         onCheckout={handleCheckout}
       />
 
+      {/* Login Prompt Modal */}
       {showLoginPrompt && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl text-center">
@@ -593,6 +537,7 @@ export default function CatalogPage({ onNavigate }: CatalogPageProps) {
       <div className="sticky top-16 bg-white border-b border-slate-200 z-30 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex flex-col sm:flex-row gap-3">
+            {/* Search */}
             <div className="relative flex-1">
               <input
                 type="text"
@@ -621,6 +566,7 @@ export default function CatalogPage({ onNavigate }: CatalogPageProps) {
                 </button>
               )}
             </div>
+            {/* Scanner Button */}
             {isLoggedIn && (
               <button
                 onClick={() => setShowScanner(true)}
@@ -632,6 +578,7 @@ export default function CatalogPage({ onNavigate }: CatalogPageProps) {
                 مسح باركود
               </button>
             )}
+            {/* Cart Button (desktop) */}
             {isLoggedIn && !isAdmin && (
               <button
                 onClick={() => setIsCartOpen(true)}
@@ -650,6 +597,7 @@ export default function CatalogPage({ onNavigate }: CatalogPageProps) {
             )}
           </div>
 
+          {/* Category filters */}
           <div className="flex flex-wrap gap-1.5 mt-3 pb-1">
             {CATEGORIES.map((cat) => (
               <button
@@ -668,6 +616,7 @@ export default function CatalogPage({ onNavigate }: CatalogPageProps) {
         </div>
       </div>
 
+      {/* Success/Error Toasts */}
       {checkoutSuccess && (
         <div className="fixed top-20 right-4 z-50 bg-green-600 text-white px-5 py-3 rounded-xl shadow-lg flex items-center gap-2 animate-fade-in text-sm max-w-xs">
           <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -689,116 +638,59 @@ export default function CatalogPage({ onNavigate }: CatalogPageProps) {
         </div>
       )}
 
+      {/* Main Content - All Medicines Grid */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {isSearching ? (
-          <>
-            <div className="flex items-center justify-between mb-4">
-              <p className="text-sm text-slate-500">
-                عرض <span className="font-bold text-slate-700">{filteredMedicines.length}</span> نتيجة
-                {selectedCategory !== "الكل" && (
-                  <span className="mr-1">
-                    في <span className="text-blue-600 font-bold">{selectedCategory}</span>
-                  </span>
-                )}
-              </p>
-              <button
-                onClick={() => {
-                  setSearch("");
-                  setSelectedCategory("الكل");
-                }}
-                className="text-xs text-blue-600 hover:underline"
-              >
-                إعادة ضبط الفلاتر
-              </button>
-            </div>
-
-            {filteredMedicines.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-16 text-slate-400">
-                <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-4">
-                  <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
-                </div>
-                <p className="font-semibold text-slate-600">لا توجد نتائج</p>
-                <p className="text-sm mt-1">جرب البحث بكلمات مختلفة أو تصفية مختلفة</p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                {filteredMedicines.map((medicine) => (
-                  <MedicineCard
-                    key={medicine.id}
-                    medicine={medicine}
-                    onAddToCart={handleAddToCart}
-                    isLoggedIn={isLoggedIn && !isAdmin}
-                    onLoginPrompt={() => setShowLoginPrompt(true)}
-                    onViewDetails={(id) => onNavigate("medicine-details", { id })}
-                  />
-                ))}
-              </div>
+        <div className="flex items-center justify-between mb-4">
+          <p className="text-sm text-slate-500">
+            عرض <span className="font-bold text-slate-700">{filteredMedicines.length}</span> دواء
+            {selectedCategory !== "الكل" && (
+              <span className="mr-1">
+                في <span className="text-blue-600 font-bold">{selectedCategory}</span>
+              </span>
             )}
-          </>
-        ) : (
-          <>
-            <ProductSection
-              title="🎁 عروض خاصة"
-              medicines={specialOffers}
-              onAddToCart={handleAddToCart}
-              isLoggedIn={isLoggedIn && !isAdmin}
-              onLoginPrompt={() => setShowLoginPrompt(true)}
-              onViewDetails={(id) => onNavigate("medicine-details", { id })}
-              onViewAll={() => {
-                setSelectedCategory("الكل");
-                setSearch("بونص");
-              }}
-              viewAllLabel="كل العروض"
-            />
-
-            <ProductSection
-              title="🆕 أحدث الإضافات"
-              medicines={newArrivals}
-              onAddToCart={handleAddToCart}
-              isLoggedIn={isLoggedIn && !isAdmin}
-              onLoginPrompt={() => setShowLoginPrompt(true)}
-              onViewDetails={(id) => onNavigate("medicine-details", { id })}
-              onViewAll={() => {
-                setSelectedCategory("الكل");
+          </p>
+          {(search || selectedCategory !== "الكل") && (
+            <button
+              onClick={() => {
                 setSearch("");
-              }}
-              viewAllLabel="جميع المنتجات"
-            />
-
-            <ProductSection
-              title="🔥 الأكثر طلباً"
-              medicines={mostPopular}
-              onAddToCart={handleAddToCart}
-              isLoggedIn={isLoggedIn && !isAdmin}
-              onLoginPrompt={() => setShowLoginPrompt(true)}
-              onViewDetails={(id) => onNavigate("medicine-details", { id })}
-              onViewAll={() => {
                 setSelectedCategory("الكل");
-                setSearch("");
               }}
-              viewAllLabel="عرض الكل"
-            />
+              className="text-xs text-blue-600 hover:underline"
+            >
+              إعادة ضبط الفلاتر
+            </button>
+          )}
+        </div>
 
-            <div className="mt-2 text-center">
-              <button
-                onClick={() => {
-                  setSelectedCategory("الكل");
-                  setSearch("");
-                }}
-                className="text-sm text-blue-600 hover:text-blue-800 font-medium border border-blue-200 hover:border-blue-400 px-6 py-2 rounded-full transition-colors"
-              >
-                📋 عرض جميع الأدوية ({medicines.length})
-              </button>
+        {filteredMedicines.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+            <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+              <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
             </div>
-          </>
+            <p className="font-semibold text-slate-600">لا توجد نتائج</p>
+            <p className="text-sm mt-1">جرب البحث بكلمات مختلفة أو تصفية مختلفة</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+            {filteredMedicines.map((medicine) => (
+              <MedicineCard
+                key={medicine.id}
+                medicine={medicine}
+                onAddToCart={handleAddToCart}
+                isLoggedIn={isLoggedIn && !isAdmin}
+                onLoginPrompt={() => setShowLoginPrompt(true)}
+                onViewDetails={(id) => onNavigate("medicine-details", { id })}
+              />
+            ))}
+          </div>
         )}
       </div>
 
       {/* Floating Cart Bar (mobile) */}
       {isLoggedIn && !isAdmin && cartCount > 0 && (
-        <div className="fixed bottom-16 left-4 right-4 z-40 sm:hidden">
+        <div className="fixed bottom-20 left-4 right-4 z-40 sm:hidden">
           <button
             onClick={() => setIsCartOpen(true)}
             className="w-full bg-blue-600 text-white py-3.5 px-5 rounded-2xl shadow-xl flex items-center justify-between font-bold text-sm"
