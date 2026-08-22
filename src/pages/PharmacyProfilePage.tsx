@@ -13,6 +13,7 @@ import {
   sendBrowserNotification,
   addNotification,
   recalculatePharmacyDebt,
+  initializeStorage,
 } from "../config/data";
 import { generateInvoicePDF } from "../components/InvoicePDF";
 import { exportPharmacyFinancialReportPDF } from "../utils/exportReports";
@@ -26,7 +27,8 @@ export default function PharmacyProfilePage({ onNavigate, params }: PharmacyProf
   const { currentUser, isAdmin, isLoggedIn, refreshUser } = useAuth();
   const [pharmacy, setPharmacy] = useState<Pharmacy | null>(null);
   const [receipts, setReceiptsState] = useState<Receipt[]>([]);
-  const [orders] = useState(getOrders());
+  const [orders, setOrdersState] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"overview" | "receipts" | "orders">("overview");
 
   // Payment form
@@ -40,7 +42,45 @@ export default function PharmacyProfilePage({ onNavigate, params }: PharmacyProf
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [imagePreviewModal, setImagePreviewModal] = useState<string | null>(null);
 
-  // ترتيب الإيصالات
+  // ── تحميل البيانات ──
+  useEffect(() => {
+    const loadData = async () => {
+      if (!isLoggedIn) { onNavigate("login"); return; }
+
+      try {
+        // تهيئة قاعدة البيانات
+        await initializeStorage();
+        
+        const pharmacies = await getPharmacies();
+        let found: Pharmacy | undefined;
+
+        if (isAdmin && params?.id) {
+          found = pharmacies.find((p) => p.id === params.id);
+        } else if (currentUser) {
+          found = pharmacies.find((p) => p.id === (params?.id || currentUser.id));
+          if (!isAdmin && found && found.id !== currentUser.id) {
+            onNavigate("catalog");
+            return;
+          }
+        }
+
+        if (found) {
+          setPharmacy(found);
+          const allReceipts = await getReceipts();
+          setReceiptsState(allReceipts.filter((r) => r.pharmacyId === found!.id));
+          const allOrders = await getOrders();
+          setOrdersState(allOrders.filter((o) => o.pharmacyId === found!.id));
+          refreshUser();
+        }
+      } catch (error) {
+        console.error('Error loading pharmacy data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, [isLoggedIn, isAdmin, currentUser, params, onNavigate, refreshUser]);
+
   const sortedReceipts = useMemo(() => {
     const priority = { approved: 0, pending: 1, rejected: 2 };
     return [...receipts].sort((a, b) => {
@@ -51,37 +91,11 @@ export default function PharmacyProfilePage({ onNavigate, params }: PharmacyProf
     });
   }, [receipts]);
 
-  // ✅ ترتيب الطلبات (الأحدث أولاً)
   const pharmacyOrders = useMemo(() => {
     return orders
       .filter((o) => o.pharmacyId === pharmacy?.id)
       .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
   }, [orders, pharmacy]);
-
-  useEffect(() => {
-    if (!isLoggedIn) { onNavigate("login"); return; }
-
-    const pharmacies = getPharmacies();
-    let found: Pharmacy | undefined;
-
-    if (isAdmin && params?.id) {
-      found = pharmacies.find((p) => p.id === params.id);
-    } else if (currentUser) {
-      found = pharmacies.find((p) => p.id === (params?.id || currentUser.id));
-      if (!isAdmin && found && found.id !== currentUser.id) {
-        onNavigate("catalog");
-        return;
-      }
-    }
-
-    if (found) {
-      setPharmacy(found);
-      const allReceipts = getReceipts();
-      setReceiptsState(allReceipts.filter((r) => r.pharmacyId === found!.id));
-      // تحديث المستخدم الحالي
-      refreshUser();
-    }
-  }, [isLoggedIn, isAdmin, currentUser, params, onNavigate, refreshUser]);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -126,7 +140,6 @@ export default function PharmacyProfilePage({ onNavigate, params }: PharmacyProf
     setSubmitLoading(true);
     await new Promise((r) => setTimeout(r, 800));
 
-    const allReceipts = getReceipts();
     const newReceipt: Receipt = {
       id: generateId("rec"),
       pharmacyId: pharmacy.id,
@@ -138,8 +151,9 @@ export default function PharmacyProfilePage({ onNavigate, params }: PharmacyProf
       notes: notes.trim(),
     };
 
+    const allReceipts = await getReceipts();
     const updated = [...allReceipts, newReceipt];
-    setReceipts(updated);
+    await setReceipts(updated);
     setReceiptsState(updated.filter((r) => r.pharmacyId === pharmacy.id));
 
     setAmount("");
@@ -154,12 +168,23 @@ export default function PharmacyProfilePage({ onNavigate, params }: PharmacyProf
       `تم إرسال إيصال بقيمة ${formatCurrency(parsedAmount)} من ${pharmacy.pharmacyName}`,
       '/vite.svg'
     );
-    addNotification(`🧾 تم إرسال إيصال بقيمة ${formatCurrency(parsedAmount)} من ${pharmacy.pharmacyName}`, "success");
+    await addNotification(`🧾 تم إرسال إيصال بقيمة ${formatCurrency(parsedAmount)} من ${pharmacy.pharmacyName}`, "success");
     setTimeout(() => setSubmitSuccess(""), 4000);
   };
 
   const approvedAmount = sortedReceipts.filter((r) => r.status === "approved").reduce((s, r) => s + r.amount, 0);
   const pendingAmount = sortedReceipts.filter((r) => r.status === "pending").reduce((s, r) => s + r.amount, 0);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center" style={{ fontFamily: "'Tajawal', sans-serif" }}>
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-500">جاري تحميل البيانات...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!pharmacy) {
     return (
@@ -361,7 +386,7 @@ export default function PharmacyProfilePage({ onNavigate, params }: PharmacyProf
               )}
             </div>
 
-            {/* ✅ قسم الرسائل الواردة - تمت الإضافة */}
+            {/* قسم الرسائل الواردة */}
             <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
               <h2 className="font-bold text-slate-800 mb-4">📩 الرسائل الواردة</h2>
               {pharmacy.messages.length === 0 ? (
@@ -660,7 +685,6 @@ export default function PharmacyProfilePage({ onNavigate, params }: PharmacyProf
                 )}
               </div>
             ) : (
-              // ✅ الطلبات مرتبة من الأحدث إلى الأقدم
               pharmacyOrders.map((order) => (
                 <div key={order.id} className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
                   <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 bg-slate-50/50">
