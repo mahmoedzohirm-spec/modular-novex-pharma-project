@@ -1185,4 +1185,313 @@ export default function AdminPage({ onNavigate }: AdminPageProps) {
                           <div>
                             <div className="w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-2">
                               <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                            </div>
+                            <p className="text-sm text-slate-500">اضغط لرفع صورة المنتج</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-600 mb-1.5">الوصف</label>
+                      <textarea
+                        value={newProduct.description}
+                        onChange={(e) => setNewProduct({ ...newProduct, description: e.target.value })}
+                        placeholder="وصف مختصر للدواء..."
+                        rows={2}
+                        className="w-full px-4 py-2.5 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm bg-slate-50 resize-none"
+                        dir="rtl"
+                      />
+                    </div>
+                    {addProductError && (
+                      <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">
+                        <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        {addProductError}
+                      </div>
+                    )}
+                    {addProductSuccess && (
+                      <div className="flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 rounded-lg px-4 py-3 text-sm">
+                        ✓ {addProductSuccess}
+                      </div>
+                    )}
+                    <button
+                      type="submit"
+                      className="w-full sm:w-auto px-6 py-2.5 bg-blue-600 text-white rounded-xl font-bold text-sm hover:bg-blue-700 transition-colors shadow-md"
+                    >
+                      ➕ إضافة المنتج
+                    </button>
+                  </form>
+                </div>
+
+                {/* Products list */}
+                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
+                  <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between flex-wrap gap-3">
+                    <h2 className="font-bold text-slate-800">قائمة المنتجات ({medicines.length})</h2>
+                    <div className="relative">
+                      <input
+                        value={medicineSearch}
+                        onChange={(e) => setMedicineSearch(e.target.value)}
+                        placeholder="بحث..."
+                        className="pl-8 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 w-48"
+                        dir="rtl"
+                      />
+                      <svg className="absolute right-3 top-2.5 w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-slate-100 bg-slate-50/50">
+                          <th className="text-right px-5 py-3 text-xs text-slate-500 font-semibold">الاسم</th>
+                          <th className="text-right px-5 py-3 text-xs text-slate-500 font-semibold hidden sm:table-cell">الاسم الجيني</th>
+                          <th className="text-right px-5 py-3 text-xs text-slate-500 font-semibold">السعر</th>
+                          <th className="text-right px-5 py-3 text-xs text-slate-500 font-semibold hidden sm:table-cell">البونص</th>
+                          <th className="text-right px-5 py-3 text-xs text-slate-500 font-semibold hidden md:table-cell">التصنيفات</th>
+                          <th className="text-right px-5 py-3 text-xs text-slate-500 font-semibold">إجراء</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredMedicines.map((m) => (
+                          <tr key={m.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                            <td className="px-5 py-3">
+                              <div className="flex items-center gap-3">
+                                <img src={m.imageUrl} alt={m.name} className="w-9 h-9 rounded-lg object-cover shrink-0" onError={(e) => { (e.target as HTMLImageElement).src = "/images/medicine-placeholder.png"; }} />
+                                <span className="font-medium text-slate-800">{m.name}</span>
+                              </div>
+                            </td>
+                            <td className="px-5 py-3 text-slate-500 hidden sm:table-cell">{m.genericName}</td>
+                            <td className="px-5 py-3 font-bold text-blue-700">{formatCurrency(m.price)}</td>
+                            <td className="px-5 py-3 hidden sm:table-cell">
+                              {m.bonus && (
+                                <span className="bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded-full font-medium">
+                                  {m.bonus}
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-5 py-3 text-slate-500 text-xs hidden md:table-cell">
+                              <div className="flex flex-wrap gap-1">
+                                {m.categories.map(cat => (
+                                  <span key={cat} className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full text-xs">
+                                    {cat}
+                                  </span>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="px-5 py-3 flex items-center gap-1">
+                              <button
+                                onClick={() => { setEditingProduct(m); setShowEditModal(true); setEditImagePreview(m.imageUrl); }}
+                                className="text-blue-400 hover:text-blue-600 transition-colors p-1.5 hover:bg-blue-50 rounded-lg"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                </svg>
+                              </button>
+                              <button
+                                onClick={() => handleDeleteMedicine(m.id)}
+                                className="text-red-400 hover:text-red-600 transition-colors p-1.5 hover:bg-red-50 rounded-lg"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                </svg>
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ─── RECEIPTS ─── */}
+            {activeSection === "receipts" && (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center mb-2">
+                  <h2 className="font-bold text-slate-800">الإيصالات</h2>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => exportReceiptsPDF(sortedReceipts)}
+                      className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      📄 PDF
+                    </button>
+                    <button
+                      onClick={() => exportReceiptsCSV(sortedReceipts, 'receipts')}
+                      className="text-xs bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 transition-colors"
+                    >
+                      📊 Excel
+                    </button>
+                  </div>
+                </div>
+                {["pending", "approved", "rejected"].map((status) => {
+                  const filtered = sortedReceipts.filter((r) => r.status === status);
+                  if (filtered.length === 0 && status !== "pending") return null;
+                  return (
+                    <div key={status} className="bg-white rounded-2xl border border-slate-200 shadow-sm">
+                      <div className={`px-5 py-4 border-b border-slate-100 rounded-t-2xl ${
+                        status === "pending" ? "bg-amber-50" : status === "approved" ? "bg-green-50" : "bg-red-50"
+                      }`}>
+                        <h2 className="font-bold text-slate-800">
+                          {status === "pending" && `⏳ الإيصالات المعلقة (${filtered.length})`}
+                          {status === "approved" && `✓ الإيصالات المقبولة (${filtered.length})`}
+                          {status === "rejected" && `✕ الإيصالات المرفوضة (${filtered.length})`}
+                        </h2>
+                      </div>
+                      {filtered.length === 0 ? (
+                        <div className="px-5 py-8 text-center text-slate-400 text-sm">
+                          لا توجد إيصالات معلقة في الوقت الحالي 🎉
+                        </div>
+                      ) : (
+                        <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                          {filtered.map((r) => (
+                            <button
+                              key={r.id}
+                              onClick={() => setReceiptModal(r)}
+                              className="bg-slate-50 rounded-xl border border-slate-200 overflow-hidden hover:border-blue-300 hover:shadow-md transition-all text-right group"
+                            >
+                              <div className="h-36 overflow-hidden bg-slate-200">
+                                <img
+                                  src={r.imageUrl}
+                                  alt="إيصال"
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                  onError={(e) => { (e.target as HTMLImageElement).src = "https://via.placeholder.com/400x250/f1f5f9/94a3b8?text=Receipt"; }}
+                                />
+                              </div>
+                              <div className="p-3">
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="font-bold text-slate-800 text-sm">{r.pharmacyName}</span>
+                                  <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${
+                                    r.status === "approved" ? "bg-green-100 text-green-700" :
+                                    r.status === "pending" ? "bg-amber-100 text-amber-700" :
+                                    "bg-red-100 text-red-700"
+                                  }`}>
+                                    {r.status === "approved" ? "مقبول" : r.status === "pending" ? "معلق" : "مرفوض"}
+                                  </span>
+                                </div>
+                                <div className="font-black text-blue-700 text-lg">{formatCurrency(r.amount)}</div>
+                                <div className="text-xs text-slate-400 mt-1">{formatDate(r.timestamp)}</div>
+                                {r.status === "pending" && (
+                                  <div className="mt-2 text-xs text-blue-600 font-medium">اضغط للمراجعة والموافقة ←</div>
+                                )}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* ─── PHARMACIES ─── */}
+            {activeSection === "pharmacies" && (
+              <div className="bg-white rounded-2xl border border-slate-200 shadow-sm">
+                <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between flex-wrap gap-3">
+                  <h2 className="font-bold text-slate-800">الصيدليات المسجلة ({pharmacies.length})</h2>
+                  <div className="relative">
+                    <input
+                      value={pharmacySearch}
+                      onChange={(e) => setPharmacySearch(e.target.value)}
+                      placeholder="بحث..."
+                      className="pl-8 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-slate-50 w-48"
+                      dir="rtl"
+                    />
+                    <svg className="absolute right-3 top-2.5 w-3.5 h-3.5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredPharmacies.map((p) => {
+                    const pharmReceipts = sortedReceipts.filter((r) => r.pharmacyId === p.id);
+                    const pendingReceipts = pharmReceipts.filter((r) => r.status === "pending").length;
+                    return (
+                      <div key={p.id} className="bg-slate-50 rounded-xl border border-slate-200 p-4 hover:border-blue-300 transition-all">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-11 h-11 bg-blue-600 rounded-xl flex items-center justify-center text-white font-black text-base">
+                              {p.pharmacyName[0]}
+                            </div>
+                            <div>
+                              <div className="font-bold text-slate-800 text-sm">{p.pharmacyName}</div>
+                              <div className="text-xs text-slate-500">@{p.username}</div>
+                            </div>
+                          </div>
+                          {pendingReceipts > 0 && (
+                            <span className="bg-amber-100 text-amber-700 text-xs px-2 py-0.5 rounded-full font-bold">
+                              {pendingReceipts} معلق
+                            </span>
+                          )}
+                        </div>
+                        <div className="space-y-1.5 text-xs mb-3">
+                          <div className="flex items-center gap-2 text-slate-500">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                            </svg>
+                            {p.phone}
+                          </div>
+                          <div className="flex items-center gap-2 text-slate-500">
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            {formatDate(p.registeredAt)}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 mb-3">
+                          <div className="bg-red-50 rounded-lg p-2 text-center">
+                            <div className="text-xs text-red-500">المستحق</div>
+                            <div className="font-black text-red-700 text-sm">{formatCurrency(p.totalDebt)}</div>
+                          </div>
+                          <div className="bg-green-50 rounded-lg p-2 text-center">
+                            <div className="text-xs text-green-500">المدفوع</div>
+                            <div className="font-black text-green-700 text-sm">{formatCurrency(p.totalPaid)}</div>
+                          </div>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => onNavigate("pharmacy-profile", { id: p.id })}
+                            className="flex-1 py-2 bg-blue-600 text-white rounded-lg text-xs font-bold hover:bg-blue-700 transition-colors flex items-center justify-center gap-1"
+                          >
+                            عرض الملف
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() => setReminderModal({ pharmacyId: p.id, pharmacyName: p.pharmacyName })}
+                            className="px-3 py-2 bg-amber-600 text-white rounded-lg text-xs font-bold hover:bg-amber-700 transition-colors flex items-center gap-1"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            تذكير
+                          </button>
+                          <button
+                            onClick={() => setResetPasswordModal({ pharmacyId: p.id, pharmacyName: p.pharmacyName })}
+                            className="px-3 py-2 bg-red-600 text-white rounded-lg text-xs font-bold hover:bg-red-700 transition-colors flex items-center gap-1"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+                            </svg>
+                            إعادة تعيين
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+}
