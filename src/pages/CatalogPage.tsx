@@ -694,25 +694,6 @@ export default function CatalogPage({ onNavigate }: CatalogPageProps) {
           </div>
         )}
       </div>
-
-      {/* Floating Cart Bar (mobile) */}
-      {isLoggedIn && !isAdmin && cartCount > 0 && (
-        <div className="fixed bottom-20 left-4 right-4 z-40 sm:hidden">
-          <button
-            onClick={() => setIsCartOpen(true)}
-            className="w-full bg-blue-600 text-white py-3.5 px-5 rounded-2xl shadow-xl flex items-center justify-between font-bold text-sm"
-          >
-            <div className="flex items-center gap-2">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-              <span className="bg-white text-blue-700 text-xs font-black px-2 py-0.5 rounded-full">{cartCount}</span>
-              <span>عرض السلة</span>
-            </div>
-            <span className="font-black">{formatCurrency(cartTotal)}</span>
-          </button>
-        </div>
-      )}
     </div>
   );
 }
