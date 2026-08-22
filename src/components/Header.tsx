@@ -62,8 +62,16 @@ export default function Header({
               alt="Novex Pharma"
               className="w-9 h-9 rounded-xl object-cover shadow-md"
               onError={(e) => {
-                // إذا لم توجد الصورة، نظهر النص
-                (e.target as HTMLImageElement).style.display = 'none';
+                const target = e.target as HTMLImageElement;
+                target.style.display = "none";
+                const parent = target.parentElement;
+                if (parent) {
+                  const fallback = document.createElement("div");
+                  fallback.className =
+                    "w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center text-white font-bold text-sm";
+                  fallback.textContent = "N";
+                  parent.prepend(fallback);
+                }
               }}
             />
             <div className="text-right hidden sm:block">
