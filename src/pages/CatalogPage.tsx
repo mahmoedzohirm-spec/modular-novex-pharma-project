@@ -204,7 +204,7 @@ function CartSidebar({
 }
 
 // ============================================================
-// Medicine Card Component (تم تعديله ليصبح مناسباً للجوال)
+// Medicine Card Component (معدل للجوال)
 // ============================================================
 function MedicineCard({
   medicine,
@@ -235,7 +235,6 @@ function MedicineCard({
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-lg hover:border-blue-200 transition-all duration-300 group flex flex-col h-full">
-      {/* Image */}
       <div className="relative overflow-hidden h-32 sm:h-40 bg-slate-100">
         <img
           src={medicine.imageUrl}
@@ -269,7 +268,6 @@ function MedicineCard({
         )}
       </div>
 
-      {/* Content */}
       <div className="p-3 flex flex-col flex-1">
         <h3 className="font-bold text-slate-900 text-sm leading-tight mb-0.5 line-clamp-2">
           {medicine.name}
@@ -277,19 +275,16 @@ function MedicineCard({
         <p className="text-[10px] text-slate-400 italic mb-1">{medicine.genericName}</p>
         <p className="text-[10px] text-slate-500 mb-2 line-clamp-2 flex-1">{medicine.description}</p>
 
-        {/* Rating */}
         <div className="flex items-center gap-1 mb-1">
           <RatingStars rating={avgRating} readonly size="sm" />
           <span className="text-[10px] text-slate-400">({medicine.ratings.length})</span>
         </div>
 
-        {/* Price - original only */}
         <div className="mb-2">
           <span className="text-base font-black text-blue-700">{formatCurrency(medicine.price)}</span>
           <span className="text-[10px] text-slate-400 mr-1">/ علبة</span>
         </div>
 
-        {/* Quantity + Add + View Details */}
         <div className="flex flex-col gap-1.5 mt-auto">
           <div className="flex items-center gap-1.5">
             <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden flex-shrink-0 bg-slate-50">
@@ -337,7 +332,7 @@ function MedicineCard({
 }
 
 // ============================================================
-// Section Component (لعرض مجموعة من المنتجات مع عنوان)
+// Section Component
 // ============================================================
 function ProductSection({
   title,
@@ -390,7 +385,52 @@ function ProductSection({
 }
 
 // ============================================================
-// Main CatalogPage Component
+// Bottom Navigation (للجوال)
+// ============================================================
+function BottomNav({ onNavigate, cartCount, onOpenCart }: { onNavigate: (page: string, params?: Record<string, string>) => void; cartCount: number; onOpenCart: () => void }) {
+  const { isLoggedIn } = useAuth();
+  if (!isLoggedIn) return null;
+
+  return (
+    <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-50 flex items-center justify-around py-2 px-2 sm:hidden shadow-lg">
+      <button
+        onClick={() => onNavigate("catalog")}
+        className="flex flex-col items-center gap-0.5 text-xs text-slate-500 hover:text-blue-600 transition-colors"
+      >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1h-2z" />
+        </svg>
+        <span>الرئيسية</span>
+      </button>
+      <button
+        onClick={onOpenCart}
+        className="flex flex-col items-center gap-0.5 text-xs text-slate-500 hover:text-blue-600 transition-colors relative"
+      >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+        </svg>
+        <span>السلة</span>
+        {cartCount > 0 && (
+          <span className="absolute -top-1 -right-2 bg-red-500 text-white text-[10px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
+            {cartCount > 9 ? "9+" : cartCount}
+          </span>
+        )}
+      </button>
+      <button
+        onClick={() => onNavigate("pharmacy-profile", { id: "profile" })}
+        className="flex flex-col items-center gap-0.5 text-xs text-slate-500 hover:text-blue-600 transition-colors"
+      >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+        </svg>
+        <span>حسابي</span>
+      </button>
+    </div>
+  );
+}
+
+// ============================================================
+// Main CatalogPage
 // ============================================================
 export default function CatalogPage({ onNavigate }: CatalogPageProps) {
   const { currentUser, isLoggedIn, isAdmin } = useAuth();
@@ -404,7 +444,6 @@ export default function CatalogPage({ onNavigate }: CatalogPageProps) {
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
 
-  // تحميل الأدوية
   useEffect(() => {
     const loadMedicines = () => {
       const data = getMedicines();
@@ -413,7 +452,6 @@ export default function CatalogPage({ onNavigate }: CatalogPageProps) {
     loadMedicines();
   }, []);
 
-  // تصنيف المنتجات إلى أقسام
   const {
     newArrivals,
     mostPopular,
@@ -421,19 +459,13 @@ export default function CatalogPage({ onNavigate }: CatalogPageProps) {
     allMedicines,
   } = useMemo(() => {
     const sorted = [...medicines];
-    // الأحدث: viewCount < 2 (جديدة)
     const newArrivals = sorted.filter((m) => (m.viewCount || 0) < 2);
-    // الأكثر طلباً: viewCount >= 2 (شوهدت كثيراً)
     const mostPopular = sorted.filter((m) => (m.viewCount || 0) >= 2);
-    // عروض خاصة: تحتوي على بونص
     const specialOffers = sorted.filter((m) => m.bonus);
-    // جميع الأدوية مرتبة حسب الاسم
     const allMedicines = [...sorted].sort((a, b) => a.name.localeCompare(b.name, "ar"));
-
     return { newArrivals, mostPopular, specialOffers, allMedicines };
   }, [medicines]);
 
-  // فلترة الأدوية حسب البحث والتصنيف
   const filteredMedicines = useMemo(() => {
     return allMedicines.filter((m) => {
       const matchSearch =
@@ -510,17 +542,14 @@ export default function CatalogPage({ onNavigate }: CatalogPageProps) {
     }
   };
 
-  // حالة عرض البحث (إذا كان هناك بحث أو تصفية، نعرض النتائج فقط)
   const isSearching = search.trim() !== "" || selectedCategory !== "الكل";
 
   return (
-    <div className="min-h-screen bg-slate-50" style={{ fontFamily: "'Tajawal', sans-serif" }}>
-      {/* Barcode Scanner */}
+    <div className="min-h-screen bg-slate-50 pb-20 sm:pb-0" style={{ fontFamily: "'Tajawal', sans-serif" }}>
       {showScanner && (
         <BarcodeScanner onDetected={handleBarcodeDetected} onClose={() => setShowScanner(false)} />
       )}
 
-      {/* Cart Sidebar */}
       <CartSidebar
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
@@ -533,7 +562,6 @@ export default function CatalogPage({ onNavigate }: CatalogPageProps) {
         onCheckout={handleCheckout}
       />
 
-      {/* Login Prompt Modal */}
       {showLoginPrompt && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl text-center">
@@ -565,7 +593,7 @@ export default function CatalogPage({ onNavigate }: CatalogPageProps) {
         </div>
       )}
 
-      {/* Hero Banner (مُحسَّن للجوال) */}
+      {/* Hero Banner مع شعار */}
       <div className="relative bg-gradient-to-l from-blue-700 via-blue-600 to-blue-800 text-white overflow-hidden">
         <div className="absolute inset-0 opacity-10">
           <svg className="w-full h-full" viewBox="0 0 100 100" preserveAspectRatio="none">
@@ -574,25 +602,33 @@ export default function CatalogPage({ onNavigate }: CatalogPageProps) {
         </div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="text-center sm:text-right">
-              <h1 className="text-2xl sm:text-3xl md:text-4xl font-black mb-2 leading-tight">
-                مرحباً بك في <span className="text-yellow-300">Novex Pharma</span>
-              </h1>
-              <p className="text-blue-100 text-sm sm:text-base max-w-md">
-                اكتشف أفضل الأدوية بأسعار تنافسية وعروض حصرية
-              </p>
-              <div className="flex items-center justify-center sm:justify-start gap-4 mt-3 flex-wrap">
-                <div className="flex items-center gap-1.5 text-blue-100 text-xs">
-                  <span className="w-2 h-2 bg-green-400 rounded-full"></span>
-                  توصيل سريع
-                </div>
-                <div className="flex items-center gap-1.5 text-blue-100 text-xs">
-                  <span className="w-2 h-2 bg-yellow-400 rounded-full"></span>
-                  عروض بونص
-                </div>
-                <div className="flex items-center gap-1.5 text-blue-100 text-xs">
-                  <span className="w-2 h-2 bg-purple-400 rounded-full"></span>
-                  {medicines.length}+ صنف
+            <div className="text-center sm:text-right flex items-center gap-4">
+              <img
+                src="/logo.png"
+                alt="Novex Pharma"
+                className="w-16 h-16 rounded-2xl shadow-lg object-cover hidden sm:block"
+                onError={(e) => (e.target as HTMLImageElement).style.display = 'none'}
+              />
+              <div>
+                <h1 className="text-2xl sm:text-3xl md:text-4xl font-black mb-2 leading-tight">
+                  مرحباً بك في <span className="text-yellow-300">Novex Pharma</span>
+                </h1>
+                <p className="text-blue-100 text-sm sm:text-base max-w-md">
+                  اكتشف أفضل الأدوية بأسعار تنافسية وعروض حصرية
+                </p>
+                <div className="flex items-center justify-center sm:justify-start gap-4 mt-3 flex-wrap">
+                  <div className="flex items-center gap-1.5 text-blue-100 text-xs">
+                    <span className="w-2 h-2 bg-green-400 rounded-full"></span>
+                    توصيل سريع
+                  </div>
+                  <div className="flex items-center gap-1.5 text-blue-100 text-xs">
+                    <span className="w-2 h-2 bg-yellow-400 rounded-full"></span>
+                    عروض بونص
+                  </div>
+                  <div className="flex items-center gap-1.5 text-blue-100 text-xs">
+                    <span className="w-2 h-2 bg-purple-400 rounded-full"></span>
+                    {medicines.length}+ صنف
+                  </div>
                 </div>
               </div>
             </div>
@@ -614,7 +650,6 @@ export default function CatalogPage({ onNavigate }: CatalogPageProps) {
       <div className="sticky top-16 bg-white border-b border-slate-200 z-30 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="flex flex-col sm:flex-row gap-3">
-            {/* Search */}
             <div className="relative flex-1">
               <input
                 type="text"
@@ -643,7 +678,6 @@ export default function CatalogPage({ onNavigate }: CatalogPageProps) {
                 </button>
               )}
             </div>
-            {/* Scanner Button */}
             {isLoggedIn && (
               <button
                 onClick={() => setShowScanner(true)}
@@ -655,7 +689,6 @@ export default function CatalogPage({ onNavigate }: CatalogPageProps) {
                 مسح باركود
               </button>
             )}
-            {/* Cart Button (desktop) */}
             {isLoggedIn && !isAdmin && (
               <button
                 onClick={() => setIsCartOpen(true)}
@@ -674,7 +707,6 @@ export default function CatalogPage({ onNavigate }: CatalogPageProps) {
             )}
           </div>
 
-          {/* Category filters - متوافق مع الجوال */}
           <div className="flex flex-wrap gap-1.5 mt-3 pb-1">
             {CATEGORIES.map((cat) => (
               <button
@@ -693,7 +725,7 @@ export default function CatalogPage({ onNavigate }: CatalogPageProps) {
         </div>
       </div>
 
-      {/* Success/Error Toasts */}
+      {/* Toasts */}
       {checkoutSuccess && (
         <div className="fixed top-20 right-4 z-50 bg-green-600 text-white px-5 py-3 rounded-xl shadow-lg flex items-center gap-2 animate-fade-in text-sm max-w-xs">
           <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -718,7 +750,6 @@ export default function CatalogPage({ onNavigate }: CatalogPageProps) {
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {isSearching ? (
-          // --- وضع البحث: عرض النتائج فقط ---
           <>
             <div className="flex items-center justify-between mb-4">
               <p className="text-sm text-slate-500">
@@ -766,9 +797,7 @@ export default function CatalogPage({ onNavigate }: CatalogPageProps) {
             )}
           </>
         ) : (
-          // --- الوضع العادي: عرض الأقسام ---
           <>
-            {/* قسم العروض الخاصة */}
             <ProductSection
               title="🎁 عروض خاصة"
               medicines={specialOffers}
@@ -783,7 +812,6 @@ export default function CatalogPage({ onNavigate }: CatalogPageProps) {
               viewAllLabel="كل العروض"
             />
 
-            {/* قسم الأحدث */}
             <ProductSection
               title="🆕 أحدث الإضافات"
               medicines={newArrivals}
@@ -798,7 +826,6 @@ export default function CatalogPage({ onNavigate }: CatalogPageProps) {
               viewAllLabel="جميع المنتجات"
             />
 
-            {/* قسم الأكثر طلباً */}
             <ProductSection
               title="🔥 الأكثر طلباً"
               medicines={mostPopular}
@@ -813,7 +840,6 @@ export default function CatalogPage({ onNavigate }: CatalogPageProps) {
               viewAllLabel="عرض الكل"
             />
 
-            {/* عرض الكتالوج الكامل */}
             <div className="mt-2 text-center">
               <button
                 onClick={() => {
@@ -831,7 +857,7 @@ export default function CatalogPage({ onNavigate }: CatalogPageProps) {
 
       {/* Floating Cart Bar (mobile) */}
       {isLoggedIn && !isAdmin && cartCount > 0 && (
-        <div className="fixed bottom-4 left-4 right-4 z-40 sm:hidden">
+        <div className="fixed bottom-16 left-4 right-4 z-40 sm:hidden">
           <button
             onClick={() => setIsCartOpen(true)}
             className="w-full bg-blue-600 text-white py-3.5 px-5 rounded-2xl shadow-xl flex items-center justify-between font-bold text-sm"
@@ -847,6 +873,9 @@ export default function CatalogPage({ onNavigate }: CatalogPageProps) {
           </button>
         </div>
       )}
+
+      {/* Bottom Navigation */}
+      <BottomNav onNavigate={onNavigate} cartCount={cartCount} onOpenCart={() => setIsCartOpen(true)} />
     </div>
   );
 }
