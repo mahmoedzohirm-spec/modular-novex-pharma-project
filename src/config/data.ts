@@ -99,11 +99,17 @@ export interface Notification {
   type: "info" | "success" | "warning";
 }
 
-// ─── localStorage Keys (للسلة والمستخدم الحالي فقط) ───
+// ─── localStorage Keys ────────────────────────────────────────
 export const STORAGE_KEYS = {
   CART: "novex_cart",
   CURRENT_USER: "novex_current_user",
 } as const;
+
+// ─── بيانات المدير الافتراضية ──────────────────────────────
+export const ADMIN_CREDENTIALS = {
+  username: "admin",
+  password: "12121200", // يجب أن تكون مشفرة في قاعدة البيانات
+};
 
 // ─── Default seed data ───────────────────────────────────────
 const DEFAULT_MEDICINES: Medicine[] = [
