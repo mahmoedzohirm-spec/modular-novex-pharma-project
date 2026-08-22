@@ -8,6 +8,7 @@ import { initializeStorage } from "./config/data";
 import { useCart } from "./hooks/useCart";
 import Header from "./components/Header";
 import Sidebar from "./components/Sidebar";
+import BottomNav from "./components/BottomNav";
 import LoginPage from "./pages/LoginPage";
 import CatalogPage from "./pages/CatalogPage";
 import AdminPage from "./pages/AdminPage";
@@ -22,7 +23,7 @@ function AppContent() {
   const [currentPage, setCurrentPage] = useState<Page>("catalog");
   const [pageParams, setPageParams] = useState<Record<string, string>>({});
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const { cartCount } = useCart();
+  const { cartCount, setIsCartOpen } = useCart();
 
   const navigate = useCallback((page: string, params?: Record<string, string>) => {
     setCurrentPage(page as Page);
@@ -41,8 +42,12 @@ function AppContent() {
 
   const isFullscreenPage = currentPage === "login";
 
+  const handleOpenCart = () => {
+    setIsCartOpen(true);
+  };
+
   return (
-    <div className="min-h-screen bg-slate-50" dir="rtl" lang="ar">
+    <div className="min-h-screen bg-slate-50 pb-16 sm:pb-0" dir="rtl" lang="ar">
       {!isFullscreenPage && (
         <>
           <Header
@@ -67,6 +72,16 @@ function AppContent() {
       )}
       {currentPage === "medicine-details" && (
         <MedicineDetailsPage onNavigate={navigate} params={pageParams} />
+      )}
+
+      {/* Bottom Navigation for mobile */}
+      {!isFullscreenPage && (
+        <BottomNav
+          onNavigate={navigate}
+          cartCount={cartCount}
+          onOpenCart={handleOpenCart}
+          currentPage={currentPage}
+        />
       )}
     </div>
   );
